@@ -119,34 +119,46 @@ def data_analysis_page():
         else:
             st.dataframe(df)
             
-            # Descriptive statistics
+            # Descriptive statistics with a nice layout
             st.subheader("Descriptive Statistics")
-            st.write("Average Age:", df["Age"].mean())
-            st.write("Minimum Age:", df["Age"].min())
-            st.write("Maximum Age:", df["Age"].max())
-            st.write("Average Screen Time (hours):", df["Usage Frequency"].mean())
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.metric("Average Age", round(df["Age"].mean(), 2))
+            with col2:
+                st.metric("Minimum Age", df["Age"].min())
+            with col3:
+                st.metric("Maximum Age", df["Age"].max())
 
-            # Plotting graphs with Streamlit built-in plotting
+            st.metric("Average Screen Time (hours)", round(df["Usage Frequency"].mean(), 2))
+
+            # Plotting graphs using Streamlit's built-in plotting functions
             st.subheader("Graphs")
 
             # Age Distribution
             st.write("Age Distribution")
-            st.bar_chart(df['Age'].value_counts())
+            age_counts = df['Age'].value_counts().sort_index()
+            st.bar_chart(age_counts)
 
             # Usage Frequency Distribution
             st.write("Usage Frequency Distribution")
-            st.bar_chart(df['Usage Frequency'].value_counts())
+            usage_counts = df['Usage Frequency'].value_counts().sort_index()
+            st.bar_chart(usage_counts)
 
             # Performance Impact Distribution
             st.write("Performance Impact Distribution")
-            st.bar_chart(df['Performance Impact'].value_counts())
+            performance_counts = df['Performance Impact'].value_counts()
+            st.bar_chart(performance_counts)
 
-            # Additional analysis: Purpose and Activity Distribution
+            # Purpose Distribution
             st.write("Purpose Distribution")
-            st.bar_chart(df['Purpose'].value_counts())
+            purpose_counts = df['Purpose'].value_counts()
+            st.bar_chart(purpose_counts)
 
+            # Activity Distribution
             st.write("Activity Distribution")
-            st.bar_chart(df['Activity'].value_counts())
+            activity_counts = df['Activity'].value_counts()
+            st.bar_chart(activity_counts)
 
     except FileNotFoundError:
         st.error("No data available for analysis. Please submit some data first.")
