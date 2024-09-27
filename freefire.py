@@ -15,8 +15,8 @@ hosting_members = {}
 
 # Define house logos and colors
 house_logos = {
-    "Aravali": " Arv.jpeg",  # Blue rifle logo
-    "Nilgiri": "Nil.jpeg",  # Green sniper logo
+    "Aravali": " Arv.png",  # Blue rifle logo
+    "Nilgiri": "Nil.png",  # Green sniper logo
     "Shiwalik": "Shiw.jpeg",  # Red shotgun logo
     "Udaygiri": "Udi.jpeg"  # Yellow pistol logo
 }
@@ -36,7 +36,7 @@ page = st.sidebar.selectbox("Select a page", ["Registration", "Team Registration
 
 if page == "Registration":
     # Add a unique tournament logo at the top of the registration page
-    st.image("Fft.jpeg", width=500)  # Tournament logo (replace with your preferred URL)
+    st.image("Fft.png", width=500)  # Tournament logo (replace with your preferred URL)
     st.write("### Welcome to the Free Fire Tournament!")
 
     # Registration form with limited class selection (9 to 12)
