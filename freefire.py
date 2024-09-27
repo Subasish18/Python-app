@@ -1,7 +1,6 @@
 import streamlit as st
 import pandas as pd
 import random
-import qrcode
 from PIL import Image
 
 # Create a dictionary to store registration data
