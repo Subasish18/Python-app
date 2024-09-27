@@ -5,9 +5,9 @@ import random
 from PIL import Image
 
 # Store registration and match data
-registrations = {}
+registrations = []
 team_registrations = {"Aravali": [], "Nilgiri": [], "Shiwalik": [], "Udaygiri": []}
-hosting_members = {}
+hosting_members = []
 notices = []  # List to store notices
 
 # Define house logos and colors
@@ -71,14 +71,20 @@ def owner_access(owner_password):
 st.title("Free Fire League Registration")
 
 # Add a sidebar to navigate between pages
-page = st.sidebar.selectbox("Select a page", ["Registration", "Team Registration", "Match Fixing", "Semifinals", "Final", "Highlights", "Point Table", "Notices", "Hosting Members"])
+page = st.sidebar.selectbox("Select a page", ["Registration", "Team Registration", "Match Fixing", "Semifinals", "Final", "Highlights", "Point Table", "Notices", "Hosting Members", "Photo Upload"])
 
 # Owner password for managing access (set your password here)
 OWNER_PASSWORD = "linkan737"
 
+# DataFrames for registered players and hosting members
+player_df = pd.DataFrame(columns=["Name", "Class", "House", "Free Fire UID"])
+host_member_df = pd.DataFrame(columns=["Name", "UID"])
+
 if page == "Registration":
     st.image("Fft.png", width=500)  # Tournament logo
     st.write("### Welcome to the Free Fire Tournament!")
+    
+    # Form for registration
     form = st.form("registration_form")
     name = form.text_input("Name")
     class_selected = form.selectbox("Class", ["9", "10", "11", "12"])
@@ -87,129 +93,79 @@ if page == "Registration":
     submit = form.form_submit_button("Register")
 
     if submit:
-        registrations[name] = {"Class": class_selected, "House": house, "Free Fire UID": free_fire_uid}
+        # Append to the player DataFrame
+        registrations.append({
+            "Name": name,
+            "Class": class_selected,
+            "House": house,
+            "Free Fire UID": free_fire_uid
+        })
+        player_df = pd.DataFrame(registrations)
         st.success(f"Registration successful for {name}!")
 
-elif page == "Team Registration":
-    # Team registration is open for players
-    for name, details in registrations.items():
-        house = details["House"]
-        if len(team_registrations[house]) < 6 and name not in team_registrations[house]:
-            team_registrations[house].append(name)
-
-    st.header("Team Registrations")
-    for house, members in team_registrations.items():
-        st.write(f"### {house} ({len(members)})")
-        st.image(house_logos[house], width=50)
-        st.write(f"Members: {', '.join(members)}")
-        st.markdown(f"<div style='color:{house_colors[house]};'>------------------------</div>", unsafe_allow_html=True)
-
-elif page == "Match Fixing":
-    if owner_access(OWNER_PASSWORD):
-        matches = []
-        for i in range(6):
-            match = []
-            for house in team_registrations:
-                if team_registrations[house]:
-                    match.append(random.choice(team_registrations[house]))
-            matches.append(match)
-
-        st.header("Match Fixing")
-        for i, match in enumerate(matches):
-            st.write(f"Match {i + 1}: {', '.join(match)}")
-            winner = st.selectbox(f"Select Winner for Match {i + 1}", match)
-            if st.button(f"Set Winner for Match {i + 1}"):
-                loser = [team for team in match if team != winner][0]
-                rounds_won_by_winner = random.randint(3, 5)  # Random number of rounds won by the winner
-                update_points(winner, loser, rounds_won_by_winner)
-                st.success(f"Winner: {winner} with {rounds_won_by_winner} rounds won!")
-    else:
-        st.header("View Match Fixing")
-        st.write("Only the owner can update match fixing. Please contact the administrator for access.")
-
-elif page == "Semifinals":
-    if owner_access(OWNER_PASSWORD):
-        semifinal_teams = get_semifinal_teams()
-        st.header("Semifinal Match")
-        team1 = st.selectbox("Select Semifinalist 1", semifinal_teams)
-        team2 = st.selectbox("Select Semifinalist 2", [team for team in semifinal_teams if team != team1])
-
-        if st.button("Set Semifinalist Teams"):
-            st.success(f"Semifinal teams set: {team1} vs {team2}")
-
-        if st.button("Play Semifinal"):
-            winner, loser, rounds_won_winner, rounds_won_loser = play_match(team1, team2)
-            st.success(f"Semifinal Winner: {winner} ({rounds_won_winner} rounds won)")
-            st.warning(f"Semifinal Loser: {loser} ({rounds_won_loser} rounds won)")
-    else:
-        st.header("View Semifinals")
-        st.write("Only the owner can set or play the semifinals. Please contact the administrator for access.")
-
-elif page == "Final":
-    if owner_access(OWNER_PASSWORD):
-        semifinal_winner = st.selectbox("Select Finalist from Semifinal Winner", ["Aravali", "Nilgiri", "Shiwalik", "Udaygiri"])  # Manual selection
-        other_finalist = st.selectbox("Select the Other Finalist", ["TBD", "Aravali", "Nilgiri", "Shiwalik", "Udaygiri"])
-
-        if st.button("Set Finalist Teams"):
-            st.success(f"Final match set: {semifinal_winner} vs {other_finalist}")
-
-        if st.button("Play Final"):
-            winner, loser, rounds_won_winner, rounds_won_loser = play_match(semifinal_winner, other_finalist)
-            st.success(f"Final Winner: {winner} ({rounds_won_winner} rounds won)")
-            st.warning(f"Final Loser: {loser} ({rounds_won_loser} rounds won)")
-    else:
-        st.header("View Final")
-        st.write("Only the owner can set or play the final. Please contact the administrator for access.")
-
-elif page == "Point Table":
-    if owner_access(OWNER_PASSWORD):
-        st.header("Edit Point Table")
-        st.write(point_table)
-
-        # Create form for editing point table
-        for index, row in point_table.iterrows():
-            st.text(f"Edit points for {row['House']}:")
-            wins = st.number_input(f"Wins for {row['House']}", value=row["Wins"], key=f"wins_{index}")
-            losses = st.number_input(f"Losses for {row['House']}", value=row["Losses"], key=f"losses_{index}")
-            points = st.number_input(f"Points for {row['House']}", value=row["Points"], key=f"points_{index}")
-
-            if st.button(f"Update {row['House']}"):
-                point_table.at[index, 'Wins'] = wins
-                point_table.at[index, 'Losses'] = losses
-                point_table.at[index, 'Points'] = points
-                st.success(f"Updated points for {row['House']}")
-
-    else:
-        st.header("View Point Table")
-        st.write(point_table)
-
-elif page == "Notices":
-    st.header("Notices")
-    if owner_access(OWNER_PASSWORD):
-        notice = st.text_area("Post a Notice", height=100)
-        if st.button("Post Notice"):
-            if notice:
-                notices.append(notice)
-                st.success("Notice posted successfully!")
-            else:
-                st.warning("Notice cannot be empty!")
-
-    # Show all notices
-    for i, notice in enumerate(notices):
-        st.write(f"**Notice {i + 1}:** {notice}")
+    # Display the registration DataFrame
+    if len(registrations) > 0:
+        st.write("### Registered Players")
+        st.dataframe(player_df)
 
 elif page == "Hosting Members":
     if owner_access(OWNER_PASSWORD):
+        st.header("Register Hosting Members")
+        
+        # Form for host member registration
         form = st.form("hosting_member_form")
         name = form.text_input("Name")
         uid = form.text_input("UID")
         submit = form.form_submit_button("Register")
 
         if submit:
-            hosting_members[name] = {"UID": uid}
+            # Append to the hosting members DataFrame
+            hosting_members.append({
+                "Name": name,
+                "UID": uid
+            })
+            host_member_df = pd.DataFrame(hosting_members)
             st.success(f"Hosting member {name} registered successfully!")
-    else:
-        st.warning("Only hosting members can register here.")
+    
+    # Display the host member DataFrame
+    if len(hosting_members) > 0:
+        st.write("### Registered Hosting Members")
+        st.dataframe(host_member_df)
+
+elif page == "Team Registration":
+    # Team registration is open for players
+    for player in registrations:
+        house = player["House"]
+        if len(team_registrations[house]) < 6 and player["Name"] not in team_registrations[house]:
+            team_registrations[house].append(player["Name"])
+
+    st.header("Team Registrations")
+    for house, members in team_registrations.items():
+        st.write(f"### {house} ({len(members)})")
+        st.image(house_logos[house], width=150)  # Increased logo size
+        st.write(f"Members: {', '.join(members)}")
+        st.markdown(f"<div style='color:{house_colors[house]};'>------------------------</div>", unsafe_allow_html=True)
+
+elif page == "Match Fixing":
+    if owner_access(OWNER_PASSWORD):
+        houses = list(team_registrations.keys())
+        matches = [(houses[i], houses[j]) for i in range(len(houses)) for j in range(i+1, len(houses))]
+
+        st.header("Match Fixing")
+        for i, (team1, team2) in enumerate(matches):
+            st.write(f"Match {i + 1}: {team1} vs {team2}")
+            if st.button(f"Play Match {i + 1}"):
+                winner, loser, rounds_won_winner, rounds_won_loser = play_match(team1, team2)
+                st.success(f"Winner: {winner} ({rounds_won_winner} rounds won)")
+                st.warning(f"Loser: {loser} ({rounds_won_loser} rounds won)")
+
+elif page == "Photo Upload":
+    st.header("Upload Photo")
+    uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
+    if uploaded_file is not None:
+        img = Image.open(uploaded_file)
+        st.image(img, caption="Uploaded Image.", use_column_width=True)
+        st.success("Image uploaded successfully!")
 
 # Add a "Follow me on Twitter" link at the bottom of the sidebar
 st.sidebar.markdown("[Follow me on Twitter](https://twitter.com/SwapnilaSwayam)")
