@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import random
@@ -165,6 +166,7 @@ elif page == "Point Table":
         st.header("Edit Point Table")
         st.write(point_table)
 
+        # Create form for editing point table
         for index, row in point_table.iterrows():
             st.text(f"Edit points for {row['House']}:")
             wins = st.number_input(f"Wins for {row['House']}", value=row["Wins"], key=f"wins_{index}")
@@ -182,7 +184,6 @@ elif page == "Point Table":
         st.write(point_table)
 
 elif page == "Notices":
-    # Display notices for all users
     st.header("Notices")
     if owner_access(OWNER_PASSWORD):
         notice = st.text_area("Post a Notice", height=100)
@@ -209,3 +210,6 @@ elif page == "Hosting Members":
             st.success(f"Hosting member {name} registered successfully!")
     else:
         st.warning("Only hosting members can register here.")
+
+# Add a "Follow me on Twitter" link at the bottom of the sidebar
+st.sidebar.markdown("[Follow me on Twitter](https://twitter.com/SwapnilaSwayam)")
