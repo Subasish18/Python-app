@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import random
@@ -142,7 +141,7 @@ elif page == "Team Registration":
     st.header("Team Registrations")
     for house, members in team_registrations.items():
         st.write(f"### {house} ({len(members)})")
-        st.image(house_logos[house], width=150)  # Increased logo size
+        st.image(house_logos[house], width=200)  # Increased logo size to 200
         st.write(f"Members: {', '.join(members)}")
         st.markdown(f"<div style='color:{house_colors[house]};'>------------------------</div>", unsafe_allow_html=True)
 
@@ -160,12 +159,16 @@ elif page == "Match Fixing":
                 st.warning(f"Loser: {loser} ({rounds_won_loser} rounds won)")
 
 elif page == "Photo Upload":
-    st.header("Upload Photo")
-    uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
-    if uploaded_file is not None:
-        img = Image.open(uploaded_file)
-        st.image(img, caption="Uploaded Image.", use_column_width=True)
-        st.success("Image uploaded successfully!")
+    st.header("Uploaded Photos")
+    # Image uploading will only be available to the owner
+    if owner_access(OWNER_PASSWORD):
+        uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
+        if uploaded_file is not None:
+            img = Image.open(uploaded_file)
+            st.image(img, caption="Uploaded Image.", use_column_width=True)
+            st.success("Image uploaded successfully!")
+    else:
+        st.warning("Only the owner can upload images.")
 
 # Add a "Follow me on Twitter" link at the bottom of the sidebar
 st.sidebar.markdown("[Follow me on Twitter](https://twitter.com/SwapnilaSwayam)")
