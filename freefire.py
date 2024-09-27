@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import random
@@ -8,6 +7,7 @@ from PIL import Image
 registrations = {}
 team_registrations = {"Aravali": [], "Nilgiri": [], "Shiwalik": [], "Udaygiri": []}
 hosting_members = {}
+notices = []  # List to store notices
 
 # Define house logos and colors
 house_logos = {
@@ -47,7 +47,7 @@ def get_semifinal_teams():
     sorted_table = point_table.sort_values(by="Points", ascending=False)
     return sorted_table["House"].iloc[:2].values  # Top 2 teams qualify for semifinals
 
-# Function to simulate the semifinal match
+# Function to simulate the match
 def play_match(team1, team2):
     rounds_won_team1 = random.randint(0, 5)
     rounds_won_team2 = 5 - rounds_won_team1
@@ -56,16 +56,21 @@ def play_match(team1, team2):
     update_points(winner, loser, max(rounds_won_team1, rounds_won_team2))
     return winner, loser, rounds_won_team1, rounds_won_team2
 
-# Function to restrict public from editing and grant owner access
+# Function to restrict public from editing and give owner access
 def owner_access(owner_password):
     password = st.sidebar.text_input("Enter Admin Password", type="password")
-    return password == owner_password
+    if password == owner_password:
+        st.sidebar.success("Access granted as owner.")
+        return True
+    else:
+        st.sidebar.warning("Incorrect password. View-only mode enabled.")
+        return False
 
 # Streamlit app starts here
 st.title("Free Fire League Registration")
 
 # Add a sidebar to navigate between pages
-page = st.sidebar.selectbox("Select a page", ["Registration", "Team Registration", "Match Fixing", "Semifinals", "Final", "Highlights", "Point Table", "Hosting Members"])
+page = st.sidebar.selectbox("Select a page", ["Registration", "Team Registration", "Match Fixing", "Semifinals", "Final", "Highlights", "Point Table", "Notices", "Hosting Members"])
 
 # Owner password for managing access (set your password here)
 OWNER_PASSWORD = "linkan737"
@@ -117,32 +122,80 @@ elif page == "Match Fixing":
                 rounds_won_by_winner = random.randint(3, 5)  # Random number of rounds won by the winner
                 update_points(winner, loser, rounds_won_by_winner)
                 st.success(f"Winner: {winner} with {rounds_won_by_winner} rounds won!")
+    else:
+        st.header("View Match Fixing")
+        st.write("Only the owner can update match fixing. Please contact the administrator for access.")
 
 elif page == "Semifinals":
     if owner_access(OWNER_PASSWORD):
         semifinal_teams = get_semifinal_teams()
         st.header("Semifinal Match")
-        st.write(f"Semifinal: {semifinal_teams[0]} vs {semifinal_teams[1]}")
+        team1 = st.selectbox("Select Semifinalist 1", semifinal_teams)
+        team2 = st.selectbox("Select Semifinalist 2", [team for team in semifinal_teams if team != team1])
+
+        if st.button("Set Semifinalist Teams"):
+            st.success(f"Semifinal teams set: {team1} vs {team2}")
+
         if st.button("Play Semifinal"):
-            winner, loser, rounds_won_winner, rounds_won_loser = play_match(semifinal_teams[0], semifinal_teams[1])
-            st.success(f"Winner: {winner} ({rounds_won_winner} rounds won)")
-            st.warning(f"Loser: {loser} ({rounds_won_loser} rounds won)")
+            winner, loser, rounds_won_winner, rounds_won_loser = play_match(team1, team2)
+            st.success(f"Semifinal Winner: {winner} ({rounds_won_winner} rounds won)")
+            st.warning(f"Semifinal Loser: {loser} ({rounds_won_loser} rounds won)")
+    else:
+        st.header("View Semifinals")
+        st.write("Only the owner can set or play the semifinals. Please contact the administrator for access.")
 
 elif page == "Final":
     if owner_access(OWNER_PASSWORD):
-        semifinal_winner = random.choice(get_semifinal_teams())  # Placeholder to simulate a semifinal winner
-        final_teams = [semifinal_winner, "TBD"]
-        st.header("Final Match")
-        st.write(f"Final: {final_teams[0]} vs {final_teams[1]}")
+        semifinal_winner = st.selectbox("Select Finalist from Semifinal Winner", ["Aravali", "Nilgiri", "Shiwalik", "Udaygiri"])  # Manual selection
+        other_finalist = st.selectbox("Select the Other Finalist", ["TBD", "Aravali", "Nilgiri", "Shiwalik", "Udaygiri"])
+
+        if st.button("Set Finalist Teams"):
+            st.success(f"Final match set: {semifinal_winner} vs {other_finalist}")
 
         if st.button("Play Final"):
-            winner, loser, rounds_won_winner, rounds_won_loser = play_match(final_teams[0], final_teams[1])
-            st.success(f"Final Winner: {winner} with {rounds_won_winner} rounds won!")
-            st.warning(f"Final Loser: {loser} with {rounds_won_loser} rounds won")
+            winner, loser, rounds_won_winner, rounds_won_loser = play_match(semifinal_winner, other_finalist)
+            st.success(f"Final Winner: {winner} ({rounds_won_winner} rounds won)")
+            st.warning(f"Final Loser: {loser} ({rounds_won_loser} rounds won)")
+    else:
+        st.header("View Final")
+        st.write("Only the owner can set or play the final. Please contact the administrator for access.")
 
 elif page == "Point Table":
-    st.header("Point Table")
-    st.write(point_table)
+    if owner_access(OWNER_PASSWORD):
+        st.header("Edit Point Table")
+        st.write(point_table)
+
+        for index, row in point_table.iterrows():
+            st.text(f"Edit points for {row['House']}:")
+            wins = st.number_input(f"Wins for {row['House']}", value=row["Wins"], key=f"wins_{index}")
+            losses = st.number_input(f"Losses for {row['House']}", value=row["Losses"], key=f"losses_{index}")
+            points = st.number_input(f"Points for {row['House']}", value=row["Points"], key=f"points_{index}")
+
+            if st.button(f"Update {row['House']}"):
+                point_table.at[index, 'Wins'] = wins
+                point_table.at[index, 'Losses'] = losses
+                point_table.at[index, 'Points'] = points
+                st.success(f"Updated points for {row['House']}")
+
+    else:
+        st.header("View Point Table")
+        st.write(point_table)
+
+elif page == "Notices":
+    # Display notices for all users
+    st.header("Notices")
+    if owner_access(OWNER_PASSWORD):
+        notice = st.text_area("Post a Notice", height=100)
+        if st.button("Post Notice"):
+            if notice:
+                notices.append(notice)
+                st.success("Notice posted successfully!")
+            else:
+                st.warning("Notice cannot be empty!")
+
+    # Show all notices
+    for i, notice in enumerate(notices):
+        st.write(f"**Notice {i + 1}:** {notice}")
 
 elif page == "Hosting Members":
     if owner_access(OWNER_PASSWORD):
