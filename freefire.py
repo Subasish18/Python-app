@@ -2,12 +2,14 @@ import streamlit as st
 import pandas as pd
 import random
 from PIL import Image
+import os
 
 # Store registration and match data
 registrations = []
 team_registrations = {"Aravali": [], "Nilgiri": [], "Shiwalik": [], "Udaygiri": []}
 hosting_members = []
 notices = []  # List to store notices
+uploaded_photos = []  # List to store paths of uploaded photos
 
 # Define house logos and colors
 house_logos = {
@@ -30,6 +32,13 @@ point_table = pd.DataFrame({
     "Losses": [0, 0, 0, 0],
     "Points": [0, 0, 0, 0]
 })
+
+# Directory to store uploaded images
+UPLOAD_DIR = "uploaded_photos"
+
+# Ensure the upload directory exists
+if not os.path.exists(UPLOAD_DIR):
+    os.makedirs(UPLOAD_DIR)
 
 # Function to update points based on rounds
 def update_points(winner, loser, rounds_won_by_winner):
@@ -160,15 +169,24 @@ elif page == "Match Fixing":
 
 elif page == "Photo Upload":
     st.header("Uploaded Photos")
+    
+    # Display previously uploaded images
+    if os.listdir(UPLOAD_DIR):
+        for image_file in os.listdir(UPLOAD_DIR):
+            img = Image.open(os.path.join(UPLOAD_DIR, image_file))
+            st.image(img, caption=f"Uploaded Photo: {image_file}", use_column_width=True)
+    else:
+        st.write("No photos uploaded yet.")
+    
     # Image uploading will only be available to the owner
     if owner_access(OWNER_PASSWORD):
         uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
         if uploaded_file is not None:
-            img = Image.open(uploaded_file)
-            st.image(img, caption="Uploaded Image.", use_column_width=True)
-            st.success("Image uploaded successfully!")
-    else:
-        st.warning("Only the owner can upload images.")
-
+            # Save the uploaded image to the UPLOAD_DIR
+            file_path = os.path.join(UPLOAD_DIR, uploaded_file.name)
+            with open(file_path, "wb") as f:
+                f.write(uploaded_file.getbuffer())
+            st.success(f"Image {uploaded_file.name} uploaded successfully!")
+    
 # Add a "Follow me on Twitter" link at the bottom of the sidebar
 st.sidebar.markdown("[Follow me on Twitter](https://twitter.com/SwapnilaSwayam)")
