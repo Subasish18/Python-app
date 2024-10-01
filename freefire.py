@@ -33,15 +33,29 @@ point_table = pd.DataFrame({
     "Points": [0, 0, 0, 0]
 })
 
-# Directory to store uploaded images
+# Directory to store uploaded images and CSV
 UPLOAD_DIR = "uploaded_photos"
 ID_PHOTOS_DIR = "id_photos"
+REGISTRATION_CSV = "registrations.csv"
 
 # Ensure the upload directories exist
 if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR)
 if not os.path.exists(ID_PHOTOS_DIR):
     os.makedirs(ID_PHOTOS_DIR)
+
+# Ensure the CSV file exists
+if not os.path.exists(REGISTRATION_CSV):
+    # Create an empty CSV file if it doesn't exist
+    pd.DataFrame(columns=["Name", "Class", "House", "Free Fire UID"]).to_csv(REGISTRATION_CSV, index=False)
+
+# Load the registration data from the CSV file
+def load_registration_data():
+    return pd.read_csv(REGISTRATION_CSV)
+
+# Save registration data to CSV
+def save_registration_data(df):
+    df.to_csv(REGISTRATION_CSV, index=False)
 
 # Function to update points based on rounds
 def update_points(winner, loser, rounds_won_by_winner):
@@ -68,11 +82,8 @@ def play_match(team1, team2):
     return winner, loser, rounds_won_team1, rounds_won_team2
 
 # Function to check if a player is already registered by their Free Fire UID
-def is_player_registered(uid):
-    for player in registrations:
-        if player["Free Fire UID"] == uid:
-            return True
-    return False
+def is_player_registered(uid, registration_df):
+    return uid in registration_df["Free Fire UID"].values
 
 # Function to restrict public from editing and give owner access
 def owner_access(owner_password):
@@ -93,9 +104,8 @@ page = st.sidebar.selectbox("Select a page", ["Registration", "Team Registration
 # Owner password for managing access (set your password here)
 OWNER_PASSWORD = "linkan737"
 
-# DataFrames for registered players and hosting members
-player_df = pd.DataFrame(columns=["Name", "Class", "House", "Free Fire UID"])
-host_member_df = pd.DataFrame(columns=["Name", "UID"])
+# Load the registration DataFrame from CSV
+registration_df = load_registration_data()
 
 if page == "Registration":
     st.image("Fft.png", width=500)  # Tournament logo
@@ -113,7 +123,7 @@ if page == "Registration":
 
     if submit:
         # Check if the player has already registered
-        if is_player_registered(free_fire_uid):
+        if is_player_registered(free_fire_uid, registration_df):
             st.error("You are already registered!")
         elif not name or not free_fire_uid or not id_photo:
             st.error("All fields, including ID photo, are mandatory!")
@@ -125,23 +135,24 @@ if page == "Registration":
             player_photos[free_fire_uid] = photo_path
 
             # Append to the player DataFrame
-            registrations.append({
+            new_registration = {
                 "Name": name,
                 "Class": class_selected,
                 "House": house,
                 "Free Fire UID": free_fire_uid
-            })
-            player_df = pd.DataFrame(registrations)
+            }
+            registration_df = registration_df.append(new_registration, ignore_index=True)
+            save_registration_data(registration_df)  # Save the updated data to CSV
             st.success(f"Registration successful for {name}!")
 
     # Display the registration DataFrame
-    if len(registrations) > 0:
+    if len(registration_df) > 0:
         st.write("### Registered Players")
-        st.dataframe(player_df)
+        st.dataframe(registration_df)
 
 elif page == "Team Registration":
     # Team registration is open for players
-    for player in registrations:
+    for player in registration_df.to_dict(orient="records"):
         house = player["House"]
         if len(team_registrations[house]) < 6 and player["Name"] not in team_registrations[house]:
             team_registrations[house].append(player["Name"])
@@ -155,21 +166,9 @@ elif page == "Team Registration":
 
         # Display ID photos of players
         st.write(f"**ID Photos for {house} Players:**")
-        for player in registrations:
+        for player in registration_df.to_dict(orient="records"):
             if player["House"] == house and player["Free Fire UID"] in player_photos:
                 st.image(player_photos[player["Free Fire UID"]], caption=f"{player['Name']}'s ID", width=100)
-
-elif page == "Match Fixing":
-    houses = list(team_registrations.keys())
-    matches = [(houses[i], houses[j]) for i in range(len(houses)) for j in range(i+1, len(houses))]
-
-    st.header("Match Fixing")
-    for i, (team1, team2) in enumerate(matches):
-        st.write(f"Match {i + 1}: {team1} vs {team2}")
-        if st.button(f"Play Match {i + 1}"):
-            winner, loser, rounds_won_winner, rounds_won_loser = play_match(team1, team2)
-            st.success(f"Winner: {winner} ({rounds_won_winner} rounds won)")
-            st.warning(f"Loser: {loser} ({rounds_won_loser} rounds won)")
 
 elif page == "Notices":
     st.header("Notices")
@@ -199,8 +198,7 @@ elif page == "Semifinals":
 
 elif page == "Final":
     semifinal_teams = get_semifinal_teams()
-    st.header("Final Teams")
-    if len(semifinal_teams) == 2:
+    if len(semifinal_teams) >= 2:
         final_winner, final_loser, _, _ = play_match(semifinal_teams[0], semifinal_teams[1])
         st.write(f"The final winner is: {final_winner}")
         st.write(f"The runner-up is: {final_loser}")
