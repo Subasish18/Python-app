@@ -1,7 +1,7 @@
+
 import streamlit as st
 import pandas as pd
 import random
-from PIL import Image
 import os
 
 # Store registration and match data
@@ -41,10 +41,8 @@ ID_PHOTOS_DIR = "id_photos"
 REGISTRATION_CSV = "registrations.csv"
 
 # Ensure the upload directories exist
-if not os.path.exists(UPLOAD_DIR):
-    os.makedirs(UPLOAD_DIR)
-if not os.path.exists(ID_PHOTOS_DIR):
-    os.makedirs(ID_PHOTOS_DIR)
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(ID_PHOTOS_DIR, exist_ok=True)
 
 # Ensure the CSV file exists
 if not os.path.exists(REGISTRATION_CSV):
@@ -68,11 +66,6 @@ def update_points(winner, loser, rounds_won_by_winner):
     point_table.loc[point_table["House"] == loser, "Losses"] += 1
     point_table.loc[point_table["House"] == winner, "Points"] += points_for_winner
     point_table.loc[point_table["House"] == loser, "Points"] += points_for_loser
-
-# Function to get the top 2 teams for semifinals
-def get_semifinal_teams():
-    sorted_table = point_table.sort_values(by="Points", ascending=False)
-    return sorted_table["House"].iloc[:2].values  # Top 2 teams qualify for semifinals
 
 # Function to simulate the match
 def play_match(team1, team2):
@@ -165,26 +158,23 @@ elif page == "Team Registration":
 elif page == "Match Fixing":
     st.header("Match Fixing")
 
-    # Prevent consecutive matches for the same team
-    global last_played_team, match_details
-    
     available_teams = ["Aravali", "Nilgiri", "Shiwalik", "Udaygiri"]
-    if last_played_team:
-        available_teams.remove(last_played_team)  # Remove last played team from available options
 
-    # Dropdown to select teams for the match
-    team1 = st.selectbox("Select Team 1", available_teams)
-    team2 = st.selectbox("Select Team 2", [house for house in available_teams if house != team1])
+    # Randomly select two different teams for the match
+    if len(available_teams) < 2:
+        st.error("Not enough teams to play a match.")
+    else:
+        team1, team2 = random.sample(available_teams, 2)
 
-    if st.button("Play Match"):
-        match_details = play_match(team1, team2)
-        last_played_team = match_details["Winner"]  # Update last played team
-        st.success(f"{match_details['Winner']} won the match!")
-        st.write(f"**Match Summary**: {team1} won {match_details['Rounds Won by Team 1']} rounds, {team2} won {match_details['Rounds Won by Team 2']} rounds.")
-        
-        # Display updated points table
-        st.header("Updated Point Table")
-        st.dataframe(point_table)
+        if st.button("Play Match"):
+            global match_details  # Use global to keep match details accessible
+            match_details = play_match(team1, team2)
+            st.success(f"{match_details['Winner']} won the match!")
+            st.write(f"**Match Summary**: {team1} won {match_details['Rounds Won by Team 1']} rounds, {team2} won {match_details['Rounds Won by Team 2']} rounds.")
+            
+            # Display updated points table
+            st.header("Updated Point Table")
+            st.dataframe(point_table)
 
     # Display last match details if available
     if match_details:
@@ -198,7 +188,7 @@ elif page == "Point Table":
     st.dataframe(point_table)
 
 elif page == "Semifinals":
-    semifinal_teams = get_semifinal_teams()
+    semifinal_teams = point_table.nlargest(2, 'Points')['House'].values
     st.header("Semifinal Teams")
     st.write(f"The top 2 teams qualifying for the semifinals are: {', '.join(semifinal_teams)}")
 
