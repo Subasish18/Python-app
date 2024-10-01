@@ -69,6 +69,129 @@ def play_match(team1, team2):
     update_points(winner, loser, max(rounds_won_team1, rounds_won_team2))
     return winner, loser, rounds_won_team1, rounds_won_team2
 
+# Streamlit app starts here
+st.title("Free Fire League Registration")
+
+# Add a sidebar to navigate between pages
+page = st.sidebar.selectbox("Select a page", ["Registration", "Team Registration", "Match Fixing", "Semifinals", "Final", "Highlights", "Point Table", "Notices", "Hosting Members", "Photo Upload"])
+
+# DataFrames for registered players and hosting members
+player_df = pd.DataFrame(columns=["Name", "Class", "House", "Free Fire UID"])
+host_member_df = pd.DataFrame(columns=["Name", "UID"])
+
+if page == "Registration":
+    st.image("Fft.png", width=500)  # Tournament logo
+    st.write("### Welcome to the Free Fire Tournament!")
+    
+    # Form for registration
+    form = st.form("registration_form")
+    name = form.text_input("Name")
+    class_selected = form.selectbox("Class", ["9", "10", "11", "12"])
+    house = form.selectbox("House", ["Aravali", "Nilgiri", "Shiwalik", "Udaygiri"])
+    free_fire_uid = form.text_input("Free Fire UID")
+    id_photo = form.file_uploader("Upload Your ID Photo", type=["jpg", "jpeg", "png"])
+    
+    submit = form.form_submit_button("Register")
+
+    if submit:
+        # Check if the player has already registered
+        if is_player_registered(free_fire_uid):
+            st.error("You are already registered!")
+        elif not name or not free_fire_uid or not id_photo:
+            st.error("All fields, including ID photo, are mandatory!")
+        else:
+            # Save the ID photo
+            photo_path = os.path.join(ID_PHOTOS_DIR, f"{free_fire_uid}.jpg")
+            with open(photo_path, "wb") as f:
+                f.write(id_photo.getbuffer())
+            player_photos[free_fire_uid] = photo_path
+
+            # Append to the player DataFrame
+            registrations.append({
+                "Name": name,
+                "Class": class_selected,
+                "House": house,
+                "Free Fire UID": free_fire_uid
+            })
+            player_df = pd.DataFrame(registrations)
+            st.success(f"Registration successful for {name}!")
+
+    # Display the registration DataFrame
+    if len(registrations) > 0:
+        st.write("### Registered Players")
+        st.dataframe(player_df)
+
+elif page == "Team Registration":
+    # Team registration is open for players
+    for player in registrations:
+        house = player["House"]
+        if len(team_registrations[house]) < 6 and player["Name"] not in team_registrations[house]:
+            team_registrations[house].append(player["Name"])
+
+    st.header("Team Registrations")
+    for house, members in team_registrations.items():
+        st.write(f"### {house} ({len(members)})")
+        st.image(house_logos[house], width=200)  # Increased logo size to 200
+        st.write(f"Members: {', '.join(members)}")
+        st.markdown(f"<div style='color:{house_colors[house]};'>------------------------</div>", unsafe_allow_html=True)
+
+        # Display ID photos of players
+        st.write(f"**ID Photos for {house} Players:**")
+        for player in registrations:
+            if player["House"] == house and player["Free Fire UID"] in player_photos:
+                st.image(player_photos[player["Free Fire UID"]], caption=f"{player['Name']}'s ID", width=100)
+
+elif page == "Match Fixing":
+    houses = list(team_registrations.keys())
+    matches = [(houses[i], houses[j]) for i in range(len(houses)) for j in range(i+1, len(houses))]
+
+    st.header("Match Fixing")
+    for i, (team1, team2) in enumerate(matches):
+        st.write(f"Match {i + 1}: {team1} vs {team2}")
+        if st.button(f"Play Match {i + 1}"):
+            winner, loser, rounds_won_winner, rounds_won_loser = play_match(team1, team2)
+            st.success(f"Winner: {winner} ({rounds_won_winner} rounds won)")
+            st.warning(f"Loser: {loser} ({rounds_won_loser} rounds won)")
+
+elif page == "Notices":
+    st.header("Notices")
+    # Display notices to the public
+    if len(notices) > 0:
+        for notice in notices:
+            st.write(f"- {notice}")
+    else:
+        st.write("No notices available.")
+    
+    # Only the owner can add or modify notices
+    if st.text_input("Add a new notice"):
+        notices.append(new_notice)
+        st.success(f"Notice added: {new_notice}")
+
+elif page == "Point Table":
+    st.header("Point Table")
+    st.dataframe(point_table)
+
+elif page == "Semifinals":
+    semifinal_teams = get_semifinal_teams()
+    st.header("Semifinal Teams")
+    st.write(f"The top 2 teams qualifying for the semifinals are: {', '.join(semifinal_teams)}")
+
+elif page == "Final":
+    semifinal_teams = get_semifinal_teams()
+    st.header("Final Teams")
+    if semifinal_teams:
+        st.write(f"The finalist teams will be determined based on the semifinal results.")
+    else:
+        st.write("Semifinals not played yet.")
+# Function to simulate the match
+def play_match(team1, team2):
+    rounds_won_team1 = random.randint(0, 5)
+    rounds_won_team2 = 5 - rounds_won_team1
+    winner = team1 if rounds_won_team1 > rounds_won_team2 else team2
+    loser = team2 if winner == team1 else team1
+    update_points(winner, loser, max(rounds_won_team1, rounds_won_team2))
+    return winner, loser, rounds_won_team1, rounds_won_team2
+
 # Function to restrict public from editing and give owner access
 def owner_access(owner_password):
     password = st.sidebar.text_input("Enter Admin Password", type="password")
