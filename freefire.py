@@ -74,11 +74,24 @@ def is_player_registered(uid):
             return True
     return False
 
+# Function to restrict public from editing and give owner access
+def owner_access(owner_password):
+    password = st.sidebar.text_input("Enter Admin Password", type="password")
+    if password == owner_password:
+        st.sidebar.success("Access granted as owner.")
+        return True
+    else:
+        st.sidebar.warning("Incorrect password. View-only mode enabled.")
+        return False
+
 # Streamlit app starts here
 st.title("Free Fire League Registration")
 
 # Add a sidebar to navigate between pages
 page = st.sidebar.selectbox("Select a page", ["Registration", "Team Registration", "Match Fixing", "Semifinals", "Final", "Highlights", "Point Table", "Notices", "Hosting Members", "Photo Upload"])
+
+# Owner password for managing access (set your password here)
+OWNER_PASSWORD = "linkan737"
 
 # DataFrames for registered players and hosting members
 player_df = pd.DataFrame(columns=["Name", "Class", "House", "Free Fire UID"])
@@ -160,6 +173,7 @@ elif page == "Match Fixing":
 
 elif page == "Notices":
     st.header("Notices")
+
     # Display notices to the public
     if len(notices) > 0:
         for notice in notices:
@@ -168,10 +182,11 @@ elif page == "Notices":
         st.write("No notices available.")
     
     # Only the owner can add or modify notices
-    new_notice = st.text_input("Add a new notice")
-    if st.button("Add Notice") and new_notice:
-        notices.append(new_notice)
-        st.success(f"Notice added: {new_notice}")
+    if owner_access(OWNER_PASSWORD):
+        new_notice = st.text_input("Add a new notice")
+        if st.button("Add Notice") and new_notice:
+            notices.append(new_notice)
+            st.success(f"Notice added: {new_notice}")
 
 elif page == "Point Table":
     st.header("Point Table")
@@ -186,13 +201,15 @@ elif page == "Final":
     semifinal_teams = get_semifinal_teams()
     st.header("Final Teams")
     if len(semifinal_teams) == 2:
-        st.write(f"The finalist teams are: {', '.join(semifinal_teams)}")
+        final_winner, final_loser, _, _ = play_match(semifinal_teams[0], semifinal_teams[1])
+        st.write(f"The final winner is: {final_winner}")
+        st.write(f"The runner-up is: {final_loser}")
     else:
-        st.write("Semifinals have not been played yet.")
+        st.write("Not enough teams to play the final yet.")
 
 elif page == "Photo Upload":
     st.header("Uploaded Photos")
-
+    
     # Display previously uploaded images
     if os.listdir(UPLOAD_DIR):
         for image_file in os.listdir(UPLOAD_DIR):
@@ -202,10 +219,11 @@ elif page == "Photo Upload":
         st.write("No photos uploaded yet.")
     
     # Only the owner can upload new photos
-    uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
-    if uploaded_file is not None:
-        # Save the uploaded image to the UPLOAD_DIR
-        file_path = os.path.join(UPLOAD_DIR, uploaded_file.name)
-        with open(file_path, "wb") as f:
-            f.write(uploaded_file.getbuffer())
-        st.success(f"Image {uploaded_file.name} uploaded successfully!")
+    if owner_access(OWNER_PASSWORD):
+        uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
+        if uploaded_file is not None:
+            # Save the uploaded image to the UPLOAD_DIR
+            file_path = os.path.join(UPLOAD_DIR, uploaded_file.name)
+            with open(file_path, "wb") as f:
+                f.write(uploaded_file.getbuffer())
+            st.success(f"Image {uploaded_file.name} uploaded successfully!")
