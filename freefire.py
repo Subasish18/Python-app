@@ -10,6 +10,7 @@ team_registrations = {"Aravali": [], "Nilgiri": [], "Shiwalik": [], "Udaygiri": 
 hosting_members = []
 notices = []  # List to store notices
 player_photos = {}  # Dictionary to store player ID photos
+last_played_team = None  # Track last played team to avoid consecutive matches
 
 # Define house logos and colors
 house_logos = {
@@ -152,40 +153,45 @@ if page == "Registration":
 
 elif page == "Team Registration":
     # Team registration is open for players
-    for player in registration_df.to_dict(orient="records"):
-        house = player["House"]
-        if len(team_registrations[house]) < 6 and player["Name"] not in team_registrations[house]:
-            team_registrations[house].append(player["Name"])
-
     st.header("Team Registrations")
     for house, members in team_registrations.items():
         st.write(f"### {house} ({len(members)})")
-        st.image(house_logos[house], width=200)  # Increased logo size to 200
+        st.image(house_logos[house], width=200)  # House logo
+        
         st.write(f"Members: {', '.join(members)}")
         st.markdown(f"<div style='color:{house_colors[house]};'>------------------------</div>", unsafe_allow_html=True)
-
-        # Display ID photos of players
-        st.write(f"**ID Photos for {house} Players:**")
+        
+        # Display player information and ID photos of players
         for player in registration_df.to_dict(orient="records"):
-            if player["House"] == house and player["Free Fire UID"] in player_photos:
-                st.image(player_photos[player["Free Fire UID"]], caption=f"{player['Name']}'s ID", width=100)
+            if player["House"] == house:
+                st.write(f"**Name**: {player['Name']}, **Class**: {player['Class']}, **Free Fire UID**: {player['Free Fire UID']}")
+                
+                if player["Free Fire UID"] in player_photos:
+                    st.image(player_photos[player["Free Fire UID"]], caption=f"{player['Name']}'s ID", width=100)
 
-elif page == "Notices":
-    st.header("Notices")
+elif page == "Match Fixing":
+    st.header("Match Fixing")
 
-    # Display notices to the public
-    if len(notices) > 0:
-        for notice in notices:
-            st.write(f"- {notice}")
-    else:
-        st.write("No notices available.")
+    # Prevent consecutive matches for the same team
+    global last_played_team
     
-    # Only the owner can add or modify notices
-    if owner_access(OWNER_PASSWORD):
-        new_notice = st.text_input("Add a new notice")
-        if st.button("Add Notice") and new_notice:
-            notices.append(new_notice)
-            st.success(f"Notice added: {new_notice}")
+    available_teams = ["Aravali", "Nilgiri", "Shiwalik", "Udaygiri"]
+    if last_played_team:
+        available_teams.remove(last_played_team)  # Remove last played team from available options
+
+    # Dropdown to select teams for the match
+    team1 = st.selectbox("Select Team 1", available_teams)
+    team2 = st.selectbox("Select Team 2", [house for house in available_teams if house != team1])
+
+    if st.button("Play Match"):
+        winner, loser, rounds_won_team1, rounds_won_team2 = play_match(team1, team2)
+        last_played_team = winner  # Update last played team
+        st.success(f"{winner} won the match!")
+        st.write(f"**Match Summary**: {team1} won {rounds_won_team1} rounds, {team2} won {rounds_won_team2} rounds.")
+        
+        # Display updated points table
+        st.header("Updated Point Table")
+        st.dataframe(point_table)
 
 elif page == "Point Table":
     st.header("Point Table")
@@ -196,32 +202,34 @@ elif page == "Semifinals":
     st.header("Semifinal Teams")
     st.write(f"The top 2 teams qualifying for the semifinals are: {', '.join(semifinal_teams)}")
 
-elif page == "Final":
-    semifinal_teams = get_semifinal_teams()
-    if len(semifinal_teams) >= 2:
-        final_winner, final_loser, _, _ = play_match(semifinal_teams[0], semifinal_teams[1])
-        st.write(f"The final winner is: {final_winner}")
-        st.write(f"The runner-up is: {final_loser}")
-    else:
-        st.write("Not enough teams to play the final yet.")
+elif page == "Notices":
+    st.header("Notices")
+    new_notice = st.text_input("Add a new notice")
+    if st.button("Submit Notice"):
+        notices.append(new_notice)
+    st.write("### Current Notices")
+    for notice in notices:
+        st.write(notice)
+
+elif page == "Hosting Members":
+    st.header("Hosting Members")
+    new_member = st.text_input("Add a new hosting member")
+    if st.button("Submit Member"):
+        hosting_members.append(new_member)
+    st.write("### Current Hosting Members")
+    for member in hosting_members:
+        st.write(member)
 
 elif page == "Photo Upload":
-    st.header("Uploaded Photos")
-    
-    # Display previously uploaded images
-    if os.listdir(UPLOAD_DIR):
-        for image_file in os.listdir(UPLOAD_DIR):
-            img = Image.open(os.path.join(UPLOAD_DIR, image_file))
-            st.image(img, caption=f"Uploaded Photo: {image_file}", use_column_width=True)
-    else:
-        st.write("No photos uploaded yet.")
-    
-    # Only the owner can upload new photos
-    if owner_access(OWNER_PASSWORD):
-        uploaded_file = st.file_uploader("Choose an image...", type=["jpg", "jpeg", "png"])
-        if uploaded_file is not None:
-            # Save the uploaded image to the UPLOAD_DIR
-            file_path = os.path.join(UPLOAD_DIR, uploaded_file.name)
-            with open(file_path, "wb") as f:
-                f.write(uploaded_file.getbuffer())
-            st.success(f"Image {uploaded_file.name} uploaded successfully!")
+    st.header("Upload Event Photos")
+    uploaded_photos = st.file_uploader("Upload photos from the event", accept_multiple_files=True, type=["jpg", "jpeg", "png"])
+    if uploaded_photos:
+        for uploaded_photo in uploaded_photos:
+            photo_path = os.path.join(UPLOAD_DIR, uploaded_photo.name)
+            with open(photo_path, "wb") as f:
+                f.write(uploaded_photo.getbuffer())
+            st.image(photo_path, caption=uploaded_photo.name)
+
+# Add Twitter follow link at the bottom of the sidebar
+st.sidebar.markdown("---")
+st.sidebar.markdown("Follow me on [Twitter @SwapnilaSwayam](https://twitter.com/SwapnilaSwayam)")
