@@ -10,6 +10,7 @@ team_registrations = {"Aravali": [], "Nilgiri": [], "Shiwalik": [], "Udaygiri": 
 hosting_members = []
 notices = []  # List to store notices
 uploaded_photos = []  # List to store paths of uploaded photos
+player_photos = {}  # Dictionary to store player ID photos
 
 # Define house logos and colors
 house_logos = {
@@ -35,10 +36,13 @@ point_table = pd.DataFrame({
 
 # Directory to store uploaded images
 UPLOAD_DIR = "uploaded_photos"
+ID_PHOTOS_DIR = "id_photos"
 
-# Ensure the upload directory exists
+# Ensure the upload directories exist
 if not os.path.exists(UPLOAD_DIR):
     os.makedirs(UPLOAD_DIR)
+if not os.path.exists(ID_PHOTOS_DIR):
+    os.makedirs(ID_PHOTOS_DIR)
 
 # Function to update points based on rounds
 def update_points(winner, loser, rounds_won_by_winner):
@@ -75,6 +79,13 @@ def owner_access(owner_password):
         st.sidebar.warning("Incorrect password. View-only mode enabled.")
         return False
 
+# Function to check if a player is already registered by their Free Fire UID
+def is_player_registered(uid):
+    for player in registrations:
+        if player["Free Fire UID"] == uid:
+            return True
+    return False
+
 # Streamlit app starts here
 st.title("Free Fire League Registration")
 
@@ -98,18 +109,32 @@ if page == "Registration":
     class_selected = form.selectbox("Class", ["9", "10", "11", "12"])
     house = form.selectbox("House", ["Aravali", "Nilgiri", "Shiwalik", "Udaygiri"])
     free_fire_uid = form.text_input("Free Fire UID")
+    id_photo = form.file_uploader("Upload Your ID Photo", type=["jpg", "jpeg", "png"])
+    
     submit = form.form_submit_button("Register")
 
     if submit:
-        # Append to the player DataFrame
-        registrations.append({
-            "Name": name,
-            "Class": class_selected,
-            "House": house,
-            "Free Fire UID": free_fire_uid
-        })
-        player_df = pd.DataFrame(registrations)
-        st.success(f"Registration successful for {name}!")
+        # Check if the player has already registered
+        if is_player_registered(free_fire_uid):
+            st.error("You are already registered!")
+        elif not name or not free_fire_uid or not id_photo:
+            st.error("All fields, including ID photo, are mandatory!")
+        else:
+            # Save the ID photo
+            photo_path = os.path.join(ID_PHOTOS_DIR, f"{free_fire_uid}.jpg")
+            with open(photo_path, "wb") as f:
+                f.write(id_photo.getbuffer())
+            player_photos[free_fire_uid] = photo_path
+
+            # Append to the player DataFrame
+            registrations.append({
+                "Name": name,
+                "Class": class_selected,
+                "House": house,
+                "Free Fire UID": free_fire_uid
+            })
+            player_df = pd.DataFrame(registrations)
+            st.success(f"Registration successful for {name}!")
 
     # Display the registration DataFrame
     if len(registrations) > 0:
@@ -154,6 +179,12 @@ elif page == "Team Registration":
         st.write(f"Members: {', '.join(members)}")
         st.markdown(f"<div style='color:{house_colors[house]};'>------------------------</div>", unsafe_allow_html=True)
 
+        # Display ID photos of players
+        st.write(f"**ID Photos for {house} Players:**")
+        for player in registrations:
+            if player["House"] == house and player["Free Fire UID"] in player_photos:
+                st.image(player_photos[player["Free Fire UID"]], caption=f"{player['Name']}'s ID", width=100)
+                
 elif page == "Match Fixing":
     if owner_access(OWNER_PASSWORD):
         houses = list(team_registrations.keys())
@@ -187,6 +218,27 @@ elif page == "Photo Upload":
             with open(file_path, "wb") as f:
                 f.write(uploaded_file.getbuffer())
             st.success(f"Image {uploaded_file.name} uploaded successfully!")
+
+elif page == "Notices":
+    st.header("Notices")
+
+    # Display notices to the public
+    if len(notices) > 0:
+        for notice in notices:
+            st.write(f"- {notice}")
+    else:
+        st.write("No notices available.")
     
+    # Only the owner can add or modify notices
+    if owner_access(OWNER_PASSWORD):
+        new_notice = st.text_input("Add a new notice")
+        if st.button("Add Notice"):
+            notices.append(new_notice)
+            st.success(f"Notice added: {new_notice}")
+
+elif page == "Point Table":
+    st.header("Point Table")
+    st.dataframe(point_table)
+
 # Add a "Follow me on Twitter" link at the bottom of the sidebar
 st.sidebar.markdown("[Follow me on Twitter](https://twitter.com/SwapnilaSwayam)")
