@@ -95,24 +95,11 @@ def play_match(team1, team2):
 def is_player_registered(uid, registration_df):
     return uid in registration_df["Free Fire UID"].values
 
-# Function to restrict public from editing and give owner access
-def owner_access(owner_password):
-    password = st.sidebar.text_input("Enter Admin Password", type="password")
-    if password == owner_password:
-        st.sidebar.success("Access granted as owner.")
-        return True
-    else:
-        st.sidebar.warning("Incorrect password. View-only mode enabled.")
-        return False
-
 # Streamlit app starts here
 st.title("Free Fire League Registration")
 
 # Add a sidebar to navigate between pages
 page = st.sidebar.selectbox("Select a page", ["Registration", "Team Registration", "Match Fixing", "Semifinals", "Final", "Highlights", "Point Table", "Notices", "Hosting Members", "Photo Upload"])
-
-# Owner password for managing access (set your password here)
-OWNER_PASSWORD = "linkan737"
 
 # Load the registration DataFrame from CSV
 registration_df = load_registration_data()
@@ -161,18 +148,15 @@ if page == "Registration":
         st.dataframe(registration_df)
 
 elif page == "Team Registration":
-    # Team registration is open for players
     st.header("Team Registrations")
     for house, members in team_registrations.items():
         st.write(f"### {house} ({len(members)})")
         st.image(house_logos[house], width=200)  # House logo
         
-        st.write(f"Members: {', '.join(members)}")
-        st.markdown(f"<div style='color:{house_colors[house]};'>------------------------</div>", unsafe_allow_html=True)
-        
         # Display player information and ID photos of players
-        for player in registration_df.to_dict(orient="records"):
-            if player["House"] == house:
+        house_members = registration_df[registration_df["House"] == house]
+        if not house_members.empty:
+            for player in house_members.to_dict(orient="records"):
                 st.write(f"**Name**: {player['Name']}, **Class**: {player['Class']}, **Free Fire UID**: {player['Free Fire UID']}")
                 
                 if player["Free Fire UID"] in player_photos:
