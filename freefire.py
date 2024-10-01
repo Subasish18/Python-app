@@ -11,6 +11,7 @@ hosting_members = []
 notices = []  # List to store notices
 player_photos = {}  # Dictionary to store player ID photos
 last_played_team = None  # Track last played team to avoid consecutive matches
+match_details = None  # Store the details of the last match played
 
 # Define house logos and colors
 house_logos = {
@@ -80,7 +81,15 @@ def play_match(team1, team2):
     winner = team1 if rounds_won_team1 > rounds_won_team2 else team2
     loser = team2 if winner == team1 else team1
     update_points(winner, loser, max(rounds_won_team1, rounds_won_team2))
-    return winner, loser, rounds_won_team1, rounds_won_team2
+    
+    # Store match details
+    match_summary = {
+        "Winner": winner,
+        "Loser": loser,
+        "Rounds Won by Team 1": rounds_won_team1,
+        "Rounds Won by Team 2": rounds_won_team2,
+    }
+    return match_summary
 
 # Function to check if a player is already registered by their Free Fire UID
 def is_player_registered(uid, registration_df):
@@ -173,7 +182,7 @@ elif page == "Match Fixing":
     st.header("Match Fixing")
 
     # Prevent consecutive matches for the same team
-    global last_played_team
+    global last_played_team, match_details
     
     available_teams = ["Aravali", "Nilgiri", "Shiwalik", "Udaygiri"]
     if last_played_team:
@@ -184,14 +193,21 @@ elif page == "Match Fixing":
     team2 = st.selectbox("Select Team 2", [house for house in available_teams if house != team1])
 
     if st.button("Play Match"):
-        winner, loser, rounds_won_team1, rounds_won_team2 = play_match(team1, team2)
-        last_played_team = winner  # Update last played team
-        st.success(f"{winner} won the match!")
-        st.write(f"**Match Summary**: {team1} won {rounds_won_team1} rounds, {team2} won {rounds_won_team2} rounds.")
+        match_details = play_match(team1, team2)
+        last_played_team = match_details["Winner"]  # Update last played team
+        st.success(f"{match_details['Winner']} won the match!")
+        st.write(f"**Match Summary**: {team1} won {match_details['Rounds Won by Team 1']} rounds, {team2} won {match_details['Rounds Won by Team 2']} rounds.")
         
         # Display updated points table
         st.header("Updated Point Table")
         st.dataframe(point_table)
+
+    # Display last match details if available
+    if match_details:
+        st.write("### Last Match Details")
+        st.write(f"**Winner**: {match_details['Winner']}")
+        st.write(f"**Rounds Won by {team1}**: {match_details['Rounds Won by Team 1']}")
+        st.write(f"**Rounds Won by {team2}**: {match_details['Rounds Won by Team 2']}")
 
 elif page == "Point Table":
     st.header("Point Table")
