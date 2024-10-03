@@ -31,10 +31,6 @@ point_table = pd.DataFrame({
 UPLOAD_DIR = "uploaded_photos"
 ID_PHOTOS_DIR = "id_photos"
 REGISTRATION_CSV = "registrations.csv"
-MATCH_SCHEDULE_CSV = "match_schedule.csv"  # CSV for match schedule
-WINS_CSV = "wins.csv"  # CSV for storing wins
-NOTICES_CSV = "notices.csv"  # CSV for storing notices
-RULES_CSV = "rules.csv"  # CSV for storing rules
 
 # Ensure the upload directories exist
 os.makedirs(UPLOAD_DIR, exist_ok=True)
@@ -73,9 +69,7 @@ page = st.sidebar.selectbox("Select a page", [
     "Payment",
     "Connections",
     "Notices",
-    "Rules",
-    "Match Schedule",
-    "Wins"
+    "Rules"
 ])
 
 # Load the registration DataFrame from CSV
@@ -190,18 +184,15 @@ elif page == "Schedule":
             }
             match_schedule.append(match_summary)
 
-            # Save match schedule to CSV
-            match_df = pd.DataFrame(match_schedule)
-            save_csv_data(match_df, MATCH_SCHEDULE_CSV)
-
             st.success(f"Match {match_number} Scheduled! Winner: {winner} | {team1} {team1_rounds_won} - {team2} {team2_rounds_won}")
         
         # Display match results
         if match_schedule:
             st.write("### Match Results")
-            for match in match_schedule:
-                st.write(f"Match {match['Match Number']}: {match['Winner']} won against {match['Team 1']} with rounds {match['Rounds Won by Team 1']} - {match['Rounds Won by Team 2']}")
-
+            with st.expander("View Match Schedule"):
+                for match in match_schedule:
+                    st.write(f"Match {match['Match Number']}: {match['Winner']} won against {match['Team 1']} with rounds {match['Rounds Won by Team 1']} - {match['Rounds Won by Team 2']}")
+    
     else:
         st.error("Incorrect Password! You do not have permission to schedule matches.")
 
@@ -247,52 +238,46 @@ elif page == "Connections":
 
 elif page == "Notices":
     st.header("Notices")
-    notices_df = load_csv_data(NOTICES_CSV)
-    if not notices_df.empty:
-        st.write(notices_df)
+    # Owner password input for adding notices
+    password = st.text_input("Enter Admin Password to Add Notices", type="password")
 
-    notice_input = st.text_area("Add a Notice")
-    if st.button("Submit Notice"):
-        if notice_input:
-            notices.append(notice_input)
-            notices_df = notices_df.append({"Notice": notice_input}, ignore_index=True)
-            save_csv_data(notices_df, NOTICES_CSV)  # Save the updated notices to CSV
-            st.success("Notice added!")
-        else:
-            st.error("Please enter a notice.")
+    if password == ADMIN_PASSWORD:
+        notice_input = st.text_area("Add a Notice")
+        if st.button("Submit Notice"):
+            if notice_input:
+                notices.append(notice_input)
+                st.success("Notice added!")
+            else:
+                st.error("Please enter a notice.")
+        
+        # Display existing notices
+        if notices:
+            st.write("### Existing Notices")
+            for notice in notices:
+                st.write(f"- {notice}")
+    else:
+        st.error("Incorrect Password! You do not have permission to add notices.")
 
 elif page == "Rules":
     st.header("Rules")
-    rules_df = load_csv_data(RULES_CSV)
-    if not rules_df.empty:
-        st.write(rules_df)
-    
-    rule_input = st.text_area("Add a Rule")
-    if st.button("Submit Rule"):
-        if rule_input:
-            rules_df = rules_df.append({"Rule": rule_input}, ignore_index=True)
-            save_csv_data(rules_df, RULES_CSV)  # Save the updated rules to CSV
-            st.success("Rule added!")
-        else:
-            st.error("Please enter a rule.")
+    # Owner password input for adding rules
+    password = st.text_input("Enter Admin Password to Add Rules", type="password")
 
-elif page == "Match Schedule":
-    st.header("Match Schedule")
-    match_schedule_df = load_csv_data(MATCH_SCHEDULE_CSV)
-    if not match_schedule_df.empty:
-        st.write("### Scheduled Matches")
-        st.dataframe(match_schedule_df)
+    if password == ADMIN_PASSWORD:
+        rule_input = st.text_area("Add a Rule")
+        if st.button("Submit Rule"):
+            if rule_input:
+                st.success("Rule added!")
+            else:
+                st.error("Please enter a rule.")
+        
+        # Display existing rules
+        if notices:
+            st.write("### Existing Rules")
+            for rule in notices:
+                st.write(f"- {rule}")
     else:
-        st.write("No matches scheduled yet.")
-
-elif page == "Wins":
-    st.header("Wins")
-    wins_df = load_csv_data(WINS_CSV)
-    if not wins_df.empty:
-        st.write("### Win Records")
-        st.dataframe(wins_df)
-    else:
-        st.write("No wins recorded yet.")
+        st.error("Incorrect Password! You do not have permission to add rules.")
 
 # Add Twitter follow link at the bottom of the sidebar
 st.sidebar.markdown("---")
