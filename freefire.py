@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import os
 
-# Store registration and match data
+# Store registrations, match data, and chat messages
 registrations = []
 team_registrations = {"Aravali": [], "Nilgiri": [], "Shiwalik": [], "Udaygiri": []}
 hosting_members = []
@@ -114,7 +114,7 @@ if page == "Registration":
             st.success(f"Registration successful for {name}!")
 
     # Always display the registration DataFrame
-    if len(registration_df) > 0:
+    if not registration_df.empty:
         st.write("### Registered Players")
         st.dataframe(registration_df)
 
@@ -123,6 +123,8 @@ elif page == "Host Registration":
     new_member = st.text_input("Add a new hosting member")
     if st.button("Submit Member"):
         hosting_members.append(new_member)
+        st.success(f"Member {new_member} added!")
+
     st.write("### Current Hosting Members")
     for member in hosting_members:
         st.write(member)
@@ -157,9 +159,8 @@ elif page == "Schedule":
         team1 = st.selectbox("Select Team 1", teams)
         team2 = st.selectbox("Select Team 2", teams)
 
-        rounds = st.number_input("Number of Rounds (5 rounds)", min_value=1, max_value=5, value=5, step=1)
+        rounds = st.number_input("Number of Rounds (up to 5)", min_value=1, max_value=5, value=5, step=1)
 
-        # Result input
         team1_rounds_won = st.number_input(f"Rounds Won by {team1}", min_value=0, max_value=rounds, value=0, step=1)
         team2_rounds_won = st.number_input(f"Rounds Won by {team2}", min_value=0, max_value=rounds, value=0, step=1)
 
@@ -267,6 +268,7 @@ elif page == "Rules":
         rule_input = st.text_area("Add a Rule")
         if st.button("Submit Rule"):
             if rule_input:
+                notices.append(rule_input)  # Use notices list to store rules too
                 st.success("Rule added!")
             else:
                 st.error("Please enter a rule.")
