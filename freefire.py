@@ -1,3 +1,4 @@
+
 import streamlit as st
 import pandas as pd
 import os
@@ -93,7 +94,7 @@ if page == "Registration":
         # Check if the player has already registered
         if free_fire_uid in registration_df["Free Fire UID"].values:
             st.error("You are already registered!")
-        elif not name or not free_fire_uid or not id_photo:
+        elif not name or not free_fire_uid or id_photo is None:
             st.error("All fields, including ID photo, are mandatory!")
         else:
             # Save the ID photo
@@ -166,26 +167,29 @@ elif page == "Schedule":
 
         # Determine winner
         if st.button("Schedule Match"):
-            winner = team1 if team1_rounds_won > team2_rounds_won else team2
-            loser = team2 if winner == team1 else team1
-            
-            # Update points based on rounds
-            point_table.loc[point_table["House"] == winner, "Wins"] += 1
-            point_table.loc[point_table["House"] == loser, "Losses"] += 1
-            point_table.loc[point_table["House"] == winner, "Points"] += team1_rounds_won * 2
-            point_table.loc[point_table["House"] == loser, "Points"] += team2_rounds_won * 2
+            if team1_rounds_won + team2_rounds_won > rounds:
+                st.error("Total rounds won by both teams cannot exceed total rounds.")
+            else:
+                winner = team1 if team1_rounds_won > team2_rounds_won else team2
+                loser = team2 if winner == team1 else team1
+                
+                # Update points based on rounds
+                point_table.loc[point_table["House"] == winner, "Wins"] += 1
+                point_table.loc[point_table["House"] == loser, "Losses"] += 1
+                point_table.loc[point_table["House"] == winner, "Points"] += team1_rounds_won * 2
+                point_table.loc[point_table["House"] == loser, "Points"] += team2_rounds_won * 2
 
-            match_summary = {
-                "Match Number": match_number,
-                "Team 1": team1,
-                "Team 2": team2,
-                "Rounds Won by Team 1": team1_rounds_won,
-                "Rounds Won by Team 2": team2_rounds_won,
-                "Winner": winner
-            }
-            match_schedule.append(match_summary)
+                match_summary = {
+                    "Match Number": match_number,
+                    "Team 1": team1,
+                    "Team 2": team2,
+                    "Rounds Won by Team 1": team1_rounds_won,
+                    "Rounds Won by Team 2": team2_rounds_won,
+                    "Winner": winner
+                }
+                match_schedule.append(match_summary)
 
-            st.success(f"Match {match_number} Scheduled! Winner: {winner} | {team1} {team1_rounds_won} - {team2} {team2_rounds_won}")
+                st.success(f"Match {match_number} Scheduled! Winner: {winner} | {team1} {team1_rounds_won} - {team2} {team2_rounds_won}")
         
         # Display match results
         if match_schedule:
@@ -213,6 +217,7 @@ elif page == "Highlights":
 elif page == "Pictures":
     st.header("Pictures")
     uploaded_photo = st.file_uploader("Upload a Photo", type=["jpg", "jpeg", "png"])
+
     if uploaded_photo:
         photo_path = os.path.join(UPLOAD_DIR, uploaded_photo.name)
         with open(photo_path, "wb") as f:
@@ -228,8 +233,11 @@ elif page == "Connections":
     # Simple chat system
     chat_message = st.text_input("Type your message")
     if st.button("Send"):
-        chat_messages.append(chat_message)
-        st.experimental_rerun()  # Reload the page to show the new message
+        if chat_message:
+            chat_messages.append(chat_message)
+            st.experimental_rerun()  # Reload the page to show the new message
+        else:
+            st.error("Message cannot be empty!")
 
     # Display chat messages
     if chat_messages:
