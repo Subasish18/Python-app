@@ -1,4 +1,3 @@
-
 import streamlit as st
 import pandas as pd
 import random
@@ -10,7 +9,6 @@ team_registrations = {"Aravali": [], "Nilgiri": [], "Shiwalik": [], "Udaygiri": 
 hosting_members = []
 notices = []  # List to store notices
 player_photos = {}  # Dictionary to store player ID photos
-last_played_team = None  # Track last played team to avoid consecutive matches
 match_details = None  # Store the details of the last match played
 
 # Define house logos and colors
@@ -46,7 +44,6 @@ os.makedirs(ID_PHOTOS_DIR, exist_ok=True)
 
 # Ensure the CSV file exists
 if not os.path.exists(REGISTRATION_CSV):
-    # Create an empty CSV file if it doesn't exist
     pd.DataFrame(columns=["Name", "Class", "House", "Free Fire UID"]).to_csv(REGISTRATION_CSV, index=False)
 
 # Load the registration data from the CSV file
@@ -57,42 +54,25 @@ def load_registration_data():
 def save_registration_data(df):
     df.to_csv(REGISTRATION_CSV, index=False)
 
-# Function to update points based on rounds
-def update_points(winner, loser, rounds_won_by_winner):
-    points_for_winner = rounds_won_by_winner * 2
-    points_for_loser = (5 - rounds_won_by_winner) * 2
-
-    point_table.loc[point_table["House"] == winner, "Wins"] += 1
-    point_table.loc[point_table["House"] == loser, "Losses"] += 1
-    point_table.loc[point_table["House"] == winner, "Points"] += points_for_winner
-    point_table.loc[point_table["House"] == loser, "Points"] += points_for_loser
-
-# Function to simulate the match
-def play_match(team1, team2):
-    rounds_won_team1 = random.randint(0, 5)
-    rounds_won_team2 = 5 - rounds_won_team1
-    winner = team1 if rounds_won_team1 > rounds_won_team2 else team2
-    loser = team2 if winner == team1 else team1
-    update_points(winner, loser, max(rounds_won_team1, rounds_won_team2))
-    
-    # Store match details
-    match_summary = {
-        "Winner": winner,
-        "Loser": loser,
-        "Rounds Won by Team 1": rounds_won_team1,
-        "Rounds Won by Team 2": rounds_won_team2,
-    }
-    return match_summary
-
-# Function to check if a player is already registered by their Free Fire UID
-def is_player_registered(uid, registration_df):
-    return uid in registration_df["Free Fire UID"].values
+# Admin password for owner access
+ADMIN_PASSWORD = "linkan737"  # Updated owner password
 
 # Streamlit app starts here
-st.title("Free Fire League Registration")
+st.title("Free Fire League")
 
 # Add a sidebar to navigate between pages
-page = st.sidebar.selectbox("Select a page", ["Registration", "Team Registration", "Match Fixing", "Semifinals", "Final", "Highlights", "Point Table", "Notices", "Hosting Members", "Photo Upload"])
+page = st.sidebar.selectbox("Select a page", [
+    "Registration", 
+    "Host Registration", 
+    "Team Info", 
+    "Schedule", 
+    "Point Table", 
+    "Player Stats", 
+    "Highlights", 
+    "Pictures", 
+    "Payment", 
+    "Connections"
+])
 
 # Load the registration DataFrame from CSV
 registration_df = load_registration_data()
@@ -113,7 +93,7 @@ if page == "Registration":
 
     if submit:
         # Check if the player has already registered
-        if is_player_registered(free_fire_uid, registration_df):
+        if free_fire_uid in registration_df["Free Fire UID"].values:
             st.error("You are already registered!")
         elif not name or not free_fire_uid or not id_photo:
             st.error("All fields, including ID photo, are mandatory!")
@@ -135,13 +115,26 @@ if page == "Registration":
             save_registration_data(registration_df)  # Save the updated data to CSV
             st.success(f"Registration successful for {name}!")
 
-    # Display the registration DataFrame
+    # Always display the registration DataFrame
     if len(registration_df) > 0:
         st.write("### Registered Players")
         st.dataframe(registration_df)
 
-elif page == "Team Registration":
-    st.header("Team Registrations")
+elif page == "Host Registration":
+    password = st.text_input("Enter Admin Password", type="password")
+    if password == ADMIN_PASSWORD:  # Owner access
+        st.header("Host Registration")
+        new_member = st.text_input("Add a new hosting member")
+        if st.button("Submit Member"):
+            hosting_members.append(new_member)
+        st.write("### Current Hosting Members")
+        for member in hosting_members:
+            st.write(member)
+    else:
+        st.error("You do not have permission to edit this page.")
+
+elif page == "Team Info":
+    st.header("Team Info")
     for house, members in team_registrations.items():
         st.write(f"### {house} ({len(members)})")
         st.image(house_logos[house], width=200)  # House logo
@@ -155,71 +148,78 @@ elif page == "Team Registration":
                 if player["Free Fire UID"] in player_photos:
                     st.image(player_photos[player["Free Fire UID"]], caption=f"{player['Name']}'s ID", width=100)
 
-elif page == "Match Fixing":
-    st.header("Match Fixing")
+elif page == "Schedule":
+    password = st.text_input("Enter Admin Password", type="password")
+    if password == ADMIN_PASSWORD:  # Owner access
+        st.header("Schedule")
+        available_teams = ["Aravali", "Nilgiri", "Shiwalik", "Udaygiri"]
 
-    available_teams = ["Aravali", "Nilgiri", "Shiwalik", "Udaygiri"]
+        # Schedule matches, semifinals, and finals by the owner
+        if len(available_teams) >= 2 and st.button("Schedule Match"):
+            team1, team2 = random.sample(available_teams, 2)
+            match_summary = f"Scheduled: {team1} vs {team2}"
+            st.success(match_summary)
 
-    # Randomly select two different teams for the match
-    if len(available_teams) < 2:
-        st.error("Not enough teams to play a match.")
-    else:
-        team1, team2 = random.sample(available_teams, 2)
-
-        if st.button("Play Match"):
-            global match_details  # Use global to keep match details accessible
-            match_details = play_match(team1, team2)
-            st.success(f"{match_details['Winner']} won the match!")
-            st.write(f"**Match Summary**: {team1} won {match_details['Rounds Won by Team 1']} rounds, {team2} won {match_details['Rounds Won by Team 2']} rounds.")
-            
-            # Display updated points table
-            st.header("Updated Point Table")
-            st.dataframe(point_table)
-
-    # Display last match details if available
-    if match_details:
         st.write("### Last Match Details")
-        st.write(f"**Winner**: {match_details['Winner']}")
-        st.write(f"**Rounds Won by {team1}**: {match_details['Rounds Won by Team 1']}")
-        st.write(f"**Rounds Won by {team2}**: {match_details['Rounds Won by Team 2']}")
+        if match_details:
+            st.write(f"**Winner**: {match_details['Winner']}")
+            st.write(f"**Rounds Won**: {match_details['Rounds Won by Team 1']} vs {match_details['Rounds Won by Team 2']}")
+    else:
+        st.error("You do not have permission to edit this page.")
 
 elif page == "Point Table":
-    st.header("Point Table")
-    st.dataframe(point_table)
+    password = st.text_input("Enter Admin Password", type="password")
+    if password == ADMIN_PASSWORD:  # Owner access
+        st.header("Point Table")
+        st.dataframe(point_table)
+    else:
+        st.header("Point Table")
+        st.dataframe(point_table)
 
-elif page == "Semifinals":
-    semifinal_teams = point_table.nlargest(2, 'Points')['House'].values
-    st.header("Semifinal Teams")
-    st.write(f"The top 2 teams qualifying for the semifinals are: {', '.join(semifinal_teams)}")
+elif page == "Player Stats":
+    password = st.text_input("Enter Admin Password", type="password")
+    if password == ADMIN_PASSWORD:  # Owner access
+        st.header("Player Stats")
+        # Example: Display highest kills per player
+        # Add your stats here, e.g., by fetching from another DataFrame
+    else:
+        st.error("You do not have permission to edit this page.")
 
-elif page == "Notices":
-    st.header("Notices")
-    new_notice = st.text_input("Add a new notice")
-    if st.button("Submit Notice"):
-        notices.append(new_notice)
-    st.write("### Current Notices")
-    for notice in notices:
-        st.write(notice)
+elif page == "Highlights":
+    password = st.text_input("Enter Admin Password", type="password")
+    if password == ADMIN_PASSWORD:  # Owner access
+        st.header("Highlights")
+        st.text_input("Add a highlight")  # For example, add highlights
+    else:
+        st.header("Highlights")
+        st.write("View highlights from the event")
 
-elif page == "Hosting Members":
-    st.header("Hosting Members")
-    new_member = st.text_input("Add a new hosting member")
-    if st.button("Submit Member"):
-        hosting_members.append(new_member)
-    st.write("### Current Hosting Members")
-    for member in hosting_members:
-        st.write(member)
+elif page == "Pictures":
+    password = st.text_input("Enter Admin Password", type="password")
+    if password == ADMIN_PASSWORD:  # Owner access
+        st.header("Pictures")
+        uploaded_photos = st.file_uploader("Upload photos from the event", accept_multiple_files=True, type=["jpg", "jpeg", "png"])
+        if uploaded_photos:
+            for uploaded_photo in uploaded_photos:
+                photo_path = os.path.join(UPLOAD_DIR, uploaded_photo.name)
+                with open(photo_path, "wb") as f:
+                    f.write(uploaded_photo.getbuffer())
+                st.image(photo_path, caption=uploaded_photo.name)
+    else:
+        st.error("You do not have permission to edit this page.")
 
-elif page == "Photo Upload":
-    st.header("Upload Event Photos")
-    uploaded_photos = st.file_uploader("Upload photos from the event", accept_multiple_files=True, type=["jpg", "jpeg", "png"])
-    if uploaded_photos:
-        for uploaded_photo in uploaded_photos:
-            photo_path = os.path.join(UPLOAD_DIR, uploaded_photo.name)
-            with open(photo_path, "wb") as f:
-                f.write(uploaded_photo.getbuffer())
-            st.image(photo_path, caption=uploaded_photo.name)
+elif page == "Payment":
+    st.header("Payment")
+    st.image("payment_qrcode.png", caption="Scan to Pay", width=200)
+    st.write("UPI ID: your-upi-id@bank")
 
-# Add Twitter follow link at the bottom of the sidebar
-st.sidebar.markdown("---")
-st.sidebar.markdown("Follow me on [Twitter @SwapnilaSwayam](https://twitter.com/SwapnilaSwayam)")
+elif page == "Connections":
+    password = st.text_input("Enter Admin Password", type="password")
+    if password == ADMIN_PASSWORD:  # Owner access
+        st.header("Connections")
+        chat_message = st.text_input("Enter your message")
+        if st.button("Send"):
+            st.write(f"You: {chat_message}")
+            # Here you can implement storing and displaying all user messages
+    else:
+        st
