@@ -1,6 +1,5 @@
 import streamlit as st
 import pandas as pd
-import random
 import os
 
 # Store registration and match data
@@ -10,9 +9,9 @@ hosting_members = []
 notices = []  # List to store notices
 player_photos = {}  # Dictionary to store player ID photos
 chat_messages = []  # Chat messages for Connections
-match_details = []  # List to store match details
+match_schedule = []  # List to store match schedule
 
-# Define house logos and colors
+# Define house logos
 house_logos = {
     "Aravali": "Arv.png",
     "Nilgiri": "Nil.png",
@@ -150,51 +149,58 @@ elif page == "Team Info":
                     st.image(player_photos[player["Free Fire UID"]], caption=f"{player['Name']}'s ID", width=100)
 
 elif page == "Schedule":
-    st.header("Match Schedule")
+    st.header("Match Scheduling")
     
     # Owner password input
     password = st.text_input("Enter Admin Password to Schedule Matches", type="password")
     
     if password == ADMIN_PASSWORD:
-        # Owner can set matches
+        # Owner can manually set matches
         teams = list(team_registrations.keys())
-        
-        # Match selection
+
+        # Match input
+        match_number = st.number_input("Match Number", min_value=1, value=1, step=1)
         team1 = st.selectbox("Select Team 1", teams)
         team2 = st.selectbox("Select Team 2", teams)
 
-        if team1 != team2:
-            if st.button("Schedule Match"):
-                rounds_won_team1 = random.randint(0, 5)
-                rounds_won_team2 = 5 - rounds_won_team1
-                winner = team1 if rounds_won_team1 > rounds_won_team2 else team2
-                loser = team2 if winner == team1 else team1
+        rounds = st.number_input("Number of Rounds (5 rounds)", min_value=1, max_value=5, value=5, step=1)
 
-                # Update points based on rounds
-                point_table.loc[point_table["House"] == winner, "Wins"] += 1
-                point_table.loc[point_table["House"] == loser, "Losses"] += 1
-                point_table.loc[point_table["House"] == winner, "Points"] += rounds_won_team1 * 2
-                point_table.loc[point_table["House"] == loser, "Points"] += rounds_won_team2 * 2
+        # Result input
+        team1_rounds_won = st.number_input(f"Rounds Won by {team1}", min_value=0, max_value=rounds, value=0, step=1)
+        team2_rounds_won = st.number_input(f"Rounds Won by {team2}", min_value=0, max_value=rounds, value=0, step=1)
 
-                match_summary = {
-                    "Winner": winner,
-                    "Loser": loser,
-                    "Rounds Won by Team 1": rounds_won_team1,
-                    "Rounds Won by Team 2": rounds_won_team2,
-                }
-                match_details.append(match_summary)
+        # Determine winner
+        if st.button("Schedule Match"):
+            winner = team1 if team1_rounds_won > team2_rounds_won else team2
+            loser = team2 if winner == team1 else team1
+            
+            # Update points based on rounds
+            point_table.loc[point_table["House"] == winner, "Wins"] += 1
+            point_table.loc[point_table["House"] == loser, "Losses"] += 1
+            point_table.loc[point_table["House"] == winner, "Points"] += team1_rounds_won * 2
+            point_table.loc[point_table["House"] == loser, "Points"] += team2_rounds_won * 2
 
-                # Save match details to CSV
-                match_df = pd.DataFrame(match_details)
-                save_csv_data(match_df, MATCH_SCHEDULE_CSV)
+            match_summary = {
+                "Match Number": match_number,
+                "Team 1": team1,
+                "Team 2": team2,
+                "Rounds Won by Team 1": team1_rounds_won,
+                "Rounds Won by Team 2": team2_rounds_won,
+                "Winner": winner
+            }
+            match_schedule.append(match_summary)
 
-                st.success(f"Match Scheduled! Winner: {winner} | Rounds: {rounds_won_team1} - {rounds_won_team2}")
+            # Save match schedule to CSV
+            match_df = pd.DataFrame(match_schedule)
+            save_csv_data(match_df, MATCH_SCHEDULE_CSV)
+
+            st.success(f"Match {match_number} Scheduled! Winner: {winner} | {team1} {team1_rounds_won} - {team2} {team2_rounds_won}")
         
         # Display match results
-        if match_details:
+        if match_schedule:
             st.write("### Match Results")
-            for idx, match in enumerate(match_details):
-                st.write(f"Match {idx + 1}: {match['Winner']} won against {match['Loser']} with rounds {match['Rounds Won by Team 1']} - {match['Rounds Won by Team 2']}")
+            for match in match_schedule:
+                st.write(f"Match {match['Match Number']}: {match['Winner']} won against {match['Team 1']} with rounds {match['Rounds Won by Team 1']} - {match['Rounds Won by Team 2']}")
 
     else:
         st.error("Incorrect Password! You do not have permission to schedule matches.")
@@ -206,21 +212,20 @@ elif page == "Point Table":
 elif page == "Player Stats":
     st.header("Player Stats")
     # Example: Display highest kills per player
-    st.write("Highest Kills per Player: (Functionality to be implemented)")
+    st.write("Player stats will be displayed here.")
 
 elif page == "Highlights":
     st.header("Highlights")
-    st.write("View highlights from the event")
+    st.write("Game highlights will be displayed here.")
 
 elif page == "Pictures":
     st.header("Pictures")
-    uploaded_photos = st.file_uploader("Upload photos from the event", accept_multiple_files=True, type=["jpg", "jpeg", "png"])
-    if uploaded_photos:
-        for uploaded_photo in uploaded_photos:
-            photo_path = os.path.join(UPLOAD_DIR, uploaded_photo.name)
-            with open(photo_path, "wb") as f:
-                f.write(uploaded_photo.getbuffer())
-            st.image(photo_path, caption=uploaded_photo.name, width=200)
+    uploaded_photo = st.file_uploader("Upload a Photo", type=["jpg", "jpeg", "png"])
+    if uploaded_photo:
+        photo_path = os.path.join(UPLOAD_DIR, uploaded_photo.name)
+        with open(photo_path, "wb") as f:
+            f.write(uploaded_photo.getbuffer())
+        st.image(photo_path, caption=uploaded_photo.name, width=200)
 
 elif page == "Payment":
     st.header("Payment")
