@@ -77,8 +77,27 @@ registration_df = load_csv_data(REGISTRATION_CSV)
 
 if page == "Point Table":
     st.header("Point Table")
-    # Increase the size of the point table for better visibility
+    
+    # Display the point table for everyone
     st.dataframe(point_table.style.set_properties(**{'font-size': '16pt'}))
+    
+    # Admin section to edit the point table
+    password = st.text_input("Enter Admin Password to Edit Point Table", type="password")
+    
+    if password == ADMIN_PASSWORD:
+        st.write("### Edit Point Table")
+        house = st.selectbox("Select House", point_table["House"].values)
+        wins = st.number_input("Wins", min_value=0, step=1)
+        losses = st.number_input("Losses", min_value=0, step=1)
+        points = st.number_input("Points", min_value=0, step=1)
+        
+        if st.button("Update Points"):
+            point_table.loc[point_table["House"] == house, "Wins"] = wins
+            point_table.loc[point_table["House"] == house, "Losses"] = losses
+            point_table.loc[point_table["House"] == house, "Points"] = points
+            st.success(f"Updated points for {house}")
+    else:
+        st.error("Incorrect password! You do not have permission to edit the point table.")
 
 elif page == "Notices":
     st.header("Notices")
@@ -89,7 +108,7 @@ elif page == "Notices":
         for notice in notices:
             st.write(f"- {notice}")
 
-    # Owner password input for adding notices
+    # Admin password input for adding notices
     password = st.text_input("Enter Admin Password to Add Notices", type="password")
     if password == ADMIN_PASSWORD:
         notice_input = st.text_area("Add a Notice")
@@ -109,7 +128,7 @@ elif page == "Rules":
         for rule in notices:
             st.write(f"- {rule}")
     
-    # Owner password input for adding rules
+    # Admin password input for adding rules
     password = st.text_input("Enter Admin Password to Add Rules", type="password")
     if password == ADMIN_PASSWORD:
         rule_input = st.text_area("Add a Rule")
@@ -137,6 +156,49 @@ elif page == "Connections":
         st.write("### Chat Messages")
         for message in chat_messages:
             st.write(message)
+
+elif page == "Registration":
+    st.image("Fft.png", width=500)  # Tournament logo
+    st.write("### Welcome to the Free Fire Tournament!")
+
+    # Form for registration
+    form = st.form("registration_form")
+    name = form.text_input("Name")
+    class_selected = form.selectbox("Class", ["9", "10", "11", "12"])
+    house = form.selectbox("House", ["Aravali", "Nilgiri", "Shiwalik", "Udaygiri"])
+    free_fire_uid = form.text_input("Free Fire UID")
+    id_photo = form.file_uploader("Upload Your ID Photo", type=["jpg", "jpeg", "png"])
+
+    submit = form.form_submit_button("Register")
+
+    if submit:
+        # Check if the player has already registered
+        if free_fire_uid in registration_df["Free Fire UID"].values:
+            st.error("You are already registered!")
+        elif not name or not free_fire_uid or id_photo is None:
+            st.error("All fields, including ID photo, are mandatory!")
+        else:
+            # Save the ID photo
+            photo_path = os.path.join(ID_PHOTOS_DIR, f"{free_fire_uid}.jpg")
+            with open(photo_path, "wb") as f:
+                f.write(id_photo.getbuffer())
+            player_photos[free_fire_uid] = photo_path
+
+            # Append to the player DataFrame
+            new_registration = {
+                "Name": name,
+                "Class": class_selected,
+                "House": house,
+                "Free Fire UID": free_fire_uid
+            }
+            registration_df = registration_df.append(new_registration, ignore_index=True)
+            save_csv_data(registration_df, REGISTRATION_CSV)  # Save the updated data to CSV
+            st.success(f"Registration successful for {name}!")
+
+    # Always display the registration DataFrame
+    if not registration_df.empty:
+        st.write("### Registered Players")
+        st.dataframe(registration_df)
 
 # Add a Twitter follow link at the bottom of the sidebar
 st.sidebar.markdown("---")
