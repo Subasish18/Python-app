@@ -3,12 +3,9 @@ import pandas as pd
 import os
 
 # Store registrations, match data, and chat messages
-registrations = []
 team_registrations = {"Aravali": [], "Nilgiri": [], "Shiwalik": [], "Udaygiri": []}
 hosting_members = []
-notices = []  # List to store notices
 player_photos = {}  # Dictionary to store player ID photos
-chat_messages = []  # Chat messages for Connections
 match_schedule = []  # List to store match schedule
 
 # Define house logos
@@ -72,29 +69,40 @@ page = st.sidebar.selectbox("Select a page", [
     "Rules"
 ])
 
+# Initialize session state for notices, rules, chat messages, and point table if not already set
+if "notices" not in st.session_state:
+    st.session_state.notices = []
+if "rules" not in st.session_state:
+    st.session_state.rules = []
+if "chat_messages" not in st.session_state:
+    st.session_state.chat_messages = []
+if "point_table" not in st.session_state:
+    st.session_state.point_table = point_table.copy()
+
 # Load the registration DataFrame from CSV
 registration_df = load_csv_data(REGISTRATION_CSV)
 
 if page == "Point Table":
     st.header("Point Table")
-    
+
     # Display the point table for everyone
-    st.dataframe(point_table.style.set_properties(**{'font-size': '16pt'}))
-    
+    st.dataframe(st.session_state.point_table.style.set_properties(**{'font-size': '16pt'}))
+
     # Admin section to edit the point table
     password = st.text_input("Enter Admin Password to Edit Point Table", type="password")
-    
+
     if password == ADMIN_PASSWORD:
         st.write("### Edit Point Table")
-        house = st.selectbox("Select House", point_table["House"].values)
+        house = st.selectbox("Select House", st.session_state.point_table["House"].values)
         wins = st.number_input("Wins", min_value=0, step=1)
         losses = st.number_input("Losses", min_value=0, step=1)
         points = st.number_input("Points", min_value=0, step=1)
-        
+
         if st.button("Update Points"):
-            point_table.loc[point_table["House"] == house, "Wins"] = wins
-            point_table.loc[point_table["House"] == house, "Losses"] = losses
-            point_table.loc[point_table["House"] == house, "Points"] = points
+            # Update the point table in session state
+            st.session_state.point_table.loc[st.session_state.point_table["House"] == house, "Wins"] = wins
+            st.session_state.point_table.loc[st.session_state.point_table["House"] == house, "Losses"] = losses
+            st.session_state.point_table.loc[st.session_state.point_table["House"] == house, "Points"] = points
             st.success(f"Updated points for {house}")
     else:
         st.error("Incorrect password! You do not have permission to edit the point table.")
@@ -103,9 +111,9 @@ elif page == "Notices":
     st.header("Notices")
 
     # Display existing notices for everyone
-    if notices:
+    if st.session_state.notices:
         st.write("### Existing Notices")
-        for notice in notices:
+        for notice in st.session_state.notices:
             st.write(f"- {notice}")
 
     # Admin password input for adding notices
@@ -114,27 +122,27 @@ elif page == "Notices":
         notice_input = st.text_area("Add a Notice")
         if st.button("Submit Notice"):
             if notice_input:
-                notices.append(notice_input)
+                st.session_state.notices.append(notice_input)
                 st.success("Notice added!")
             else:
                 st.error("Please enter a notice.")
 
 elif page == "Rules":
     st.header("Rules")
-    
+
     # Display existing rules for everyone
-    if notices:  # Use notices list to display rules
+    if st.session_state.rules:
         st.write("### Existing Rules")
-        for rule in notices:
+        for rule in st.session_state.rules:
             st.write(f"- {rule}")
-    
+
     # Admin password input for adding rules
     password = st.text_input("Enter Admin Password to Add Rules", type="password")
     if password == ADMIN_PASSWORD:
         rule_input = st.text_area("Add a Rule")
         if st.button("Submit Rule"):
             if rule_input:
-                notices.append(rule_input)  # Use notices list to store rules too
+                st.session_state.rules.append(rule_input)
                 st.success("Rule added!")
             else:
                 st.error("Please enter a rule.")
@@ -144,17 +152,16 @@ elif page == "Connections":
 
     # Simple chat system (available for everyone)
     chat_message = st.text_input("Type your message")
-    if st.button("Send"):
+    if st.button("Send Message"):
         if chat_message:
-            chat_messages.append(chat_message)
-            st.experimental_rerun()  # Use rerun to show updated chat messages
+            st.session_state.chat_messages.append(chat_message)
         else:
             st.error("Message cannot be empty!")
 
     # Display chat messages
-    if chat_messages:
+    if st.session_state.chat_messages:
         st.write("### Chat Messages")
-        for message in chat_messages:
+        for message in st.session_state.chat_messages:
             st.write(message)
 
 elif page == "Registration":
