@@ -2,12 +2,42 @@ import streamlit as st
 import pandas as pd
 import os
 
-# Store registrations, match data, and chat messages
-team_registrations = {"Aravali": [], "Nilgiri": [], "Shiwalik": [], "Udaygiri": []}
-hosting_members = []
-player_photos = {}  # Dictionary to store player ID photos
+# Directory to store uploaded images and CSV
+UPLOAD_DIR = "uploaded_photos"
+ID_PHOTOS_DIR = "id_photos"
+REGISTRATION_CSV = "registrations.csv"
 
-# Define house logos
+# Ensure the upload directories exist
+os.makedirs(UPLOAD_DIR, exist_ok=True)
+os.makedirs(ID_PHOTOS_DIR, exist_ok=True)
+
+# Admin password for owner access
+ADMIN_PASSWORD = "linkan737"  # Updated owner password
+
+# Load CSV data functions
+def load_csv_data(file_path):
+    if os.path.exists(file_path):
+        return pd.read_csv(file_path)
+    return pd.DataFrame(columns=["Name", "Class", "House", "Free Fire UID"])
+
+# Save CSV data functions
+def save_csv_data(df, file_path):
+    df.to_csv(file_path, index=False)
+
+# Initialize session state for various features
+if "notices" not in st.session_state:
+    st.session_state.notices = []
+if "rules" not in st.session_state:
+    st.session_state.rules = []
+if "chat_messages" not in st.session_state:
+    st.session_state.chat_messages = []
+if "match_schedule" not in st.session_state:
+    st.session_state.match_schedule = []
+
+# Load the registration DataFrame from CSV
+registration_df = load_csv_data(REGISTRATION_CSV)
+
+# Define house logos (can add actual images)
 house_logos = {
     "Aravali": "Arv.png",
     "Nilgiri": "Nil.png",
@@ -22,32 +52,6 @@ point_table = pd.DataFrame({
     "Losses": [0, 0, 0, 0],
     "Points": [0, 0, 0, 0]
 })
-
-# Directory to store uploaded images and CSV
-UPLOAD_DIR = "uploaded_photos"
-ID_PHOTOS_DIR = "id_photos"
-REGISTRATION_CSV = "registrations.csv"
-
-# Ensure the upload directories exist
-os.makedirs(UPLOAD_DIR, exist_ok=True)
-os.makedirs(ID_PHOTOS_DIR, exist_ok=True)
-
-# Ensure the CSV files exist
-if not os.path.exists(REGISTRATION_CSV):
-    pd.DataFrame(columns=["Name", "Class", "House", "Free Fire UID"]).to_csv(REGISTRATION_CSV, index=False)
-
-# Load CSV data functions
-def load_csv_data(file_path):
-    if os.path.exists(file_path):
-        return pd.read_csv(file_path)
-    return pd.DataFrame()
-
-# Save CSV data functions
-def save_csv_data(df, file_path):
-    df.to_csv(file_path, index=False)
-
-# Admin password for owner access
-ADMIN_PASSWORD = "linkan737"  # Updated owner password
 
 # Streamlit app starts here
 st.title("Free Fire League")
@@ -68,45 +72,42 @@ page = st.sidebar.selectbox("Select a page", [
     "Rules"
 ])
 
-# Initialize session state for notices, rules, chat messages, point table, and match schedule if not already set
-if "notices" not in st.session_state:
-    st.session_state.notices = []
-if "rules" not in st.session_state:
-    st.session_state.rules = []
-if "chat_messages" not in st.session_state:
-    st.session_state.chat_messages = []
-if "point_table" not in st.session_state:
-    st.session_state.point_table = point_table.copy()
-if "match_schedule" not in st.session_state:
-    st.session_state.match_schedule = []  # Initialize match schedule as empty list
+if page == "Team Info":
+    st.header("Team Information")
+    
+    # Display team information based on house registrations
+    if not registration_df.empty:
+        for house in house_logos.keys():
+            st.write(f"### {house}")
+            team_players = registration_df[registration_df["House"] == house]
+            if not team_players.empty:
+                st.dataframe(team_players[["Name", "Class", "Free Fire UID"]])
+            else:
+                st.write(f"No players registered for {house} yet.")
+    else:
+        st.write("No players registered yet.")
 
-# Load the registration DataFrame from CSV
-registration_df = load_csv_data(REGISTRATION_CSV)
-
-if page == "Point Table":
+elif page == "Point Table":
     st.header("Point Table")
 
     # Display the point table for everyone
-    st.dataframe(st.session_state.point_table.style.set_properties(**{'font-size': '16pt'}))
+    st.dataframe(point_table.style.set_properties(**{'font-size': '16pt'}))
 
     # Admin section to edit the point table
     password = st.text_input("Enter Admin Password to Edit Point Table", type="password")
 
     if password == ADMIN_PASSWORD:
         st.write("### Edit Point Table")
-        house = st.selectbox("Select House", st.session_state.point_table["House"].values)
+        house = st.selectbox("Select House", point_table["House"].values)
         wins = st.number_input("Wins", min_value=0, step=1)
         losses = st.number_input("Losses", min_value=0, step=1)
         points = st.number_input("Points", min_value=0, step=1)
 
         if st.button("Update Points"):
-            # Update the point table in session state
-            st.session_state.point_table.loc[st.session_state.point_table["House"] == house, "Wins"] = wins
-            st.session_state.point_table.loc[st.session_state.point_table["House"] == house, "Losses"] = losses
-            st.session_state.point_table.loc[st.session_state.point_table["House"] == house, "Points"] = points
+            point_table.loc[point_table["House"] == house, "Wins"] = wins
+            point_table.loc[point_table["House"] == house, "Losses"] = losses
+            point_table.loc[point_table["House"] == house, "Points"] = points
             st.success(f"Updated points for {house}")
-    else:
-        st.error("Incorrect password! You do not have permission to edit the point table.")
 
 elif page == "Schedule":
     st.header("Match Schedule")
@@ -130,14 +131,6 @@ elif page == "Schedule":
             else:
                 st.error("Please enter match details.")
 
-        st.write("### Update Match Winner")
-        match_to_update = st.selectbox("Select Match", st.session_state.match_schedule)
-        winner = st.selectbox("Select Winner", ["Aravali", "Nilgiri", "Shiwalik", "Udaygiri"])
-
-        if st.button("Update Winner"):
-            st.session_state.match_schedule.remove(match_to_update)
-            st.success(f"Match {match_to_update} updated with winner: {winner}")
-
 elif page == "Host Registration":
     st.header("Host Registration")
 
@@ -152,12 +145,55 @@ elif page == "Host Registration":
     if password == ADMIN_PASSWORD:
         if st.button("Register"):
             if name and contact_info:
-                hosting_members.append({"Name": name, "Contact": contact_info})
+                st.session_state.hosting_members.append({"Name": name, "Contact": contact_info})
                 st.success(f"{name} has been registered as a host!")
             else:
                 st.error("Please fill out all fields!")
     else:
         st.error("Incorrect admin password! You cannot register as a host.")
+
+elif page == "Registration":
+    st.image("Fft.png", width=500)  # Tournament logo
+    st.write("### Welcome to the Free Fire Tournament!")
+
+    # Form for registration
+    form = st.form("registration_form")
+    name = form.text_input("Name")
+    class_selected = form.selectbox("Class", ["9", "10", "11", "12"])
+    house = form.selectbox("House", ["Aravali", "Nilgiri", "Shiwalik", "Udaygiri"])
+    free_fire_uid = form.text_input("Free Fire UID")
+    id_photo = form.file_uploader("Upload Your ID Photo", type=["jpg", "jpeg", "png"])
+
+    submit = form.form_submit_button("Register")
+
+    if submit:
+        # Check if the player has already registered
+        if free_fire_uid in registration_df["Free Fire UID"].values:
+            st.error("You are already registered!")
+        elif not name or not free_fire_uid or id_photo is None:
+            st.error("All fields, including ID photo, are mandatory!")
+        else:
+            # Save the ID photo
+            photo_path = os.path.join(ID_PHOTOS_DIR, f"{free_fire_uid}.jpg")
+            with open(photo_path, "wb") as f:
+                f.write(id_photo.getbuffer())
+            player_photos[free_fire_uid] = photo_path
+
+            # Append to the player DataFrame
+            new_registration = {
+                "Name": name,
+                "Class": class_selected,
+                "House": house,
+                "Free Fire UID": free_fire_uid
+            }
+            registration_df = registration_df.append(new_registration, ignore_index=True)
+            save_csv_data(registration_df, REGISTRATION_CSV)  # Save the updated data to CSV
+            st.success(f"Registration successful for {name}!")
+
+    # Always display the registration DataFrame
+    if not registration_df.empty:
+        st.write("### Registered Players")
+        st.dataframe(registration_df)
 
 elif page == "Notices":
     st.header("Notices")
@@ -204,9 +240,10 @@ elif page == "Connections":
 
     # Simple chat system (available for everyone)
     chat_message = st.text_input("Type your message")
-    if st.button("Send Message"):
+    if st.button("Send"):
         if chat_message:
             st.session_state.chat_messages.append(chat_message)
+            st.success("Message sent!")
         else:
             st.error("Message cannot be empty!")
 
@@ -215,49 +252,6 @@ elif page == "Connections":
         st.write("### Chat Messages")
         for message in st.session_state.chat_messages:
             st.write(message)
-
-elif page == "Registration":
-    st.image("Fft.png", width=500)  # Tournament logo
-    st.write("### Welcome to the Free Fire Tournament!")
-
-    # Form for registration
-    form = st.form("registration_form")
-    name = form.text_input("Name")
-    class_selected = form.selectbox("Class", ["9", "10", "11", "12"])
-    house = form.selectbox("House", ["Aravali", "Nilgiri", "Shiwalik", "Udaygiri"])
-    free_fire_uid = form.text_input("Free Fire UID")
-    id_photo = form.file_uploader("Upload Your ID Photo", type=["jpg", "jpeg", "png"])
-
-    submit = form.form_submit_button("Register")
-
-    if submit:
-        # Check if the player has already registered
-        if free_fire_uid in registration_df["Free Fire UID"].values:
-            st.error("You are already registered!")
-        elif not name or not free_fire_uid or id_photo is None:
-            st.error("All fields, including ID photo, are mandatory!")
-        else:
-            # Save the ID photo
-            photo_path = os.path.join(ID_PHOTOS_DIR, f"{free_fire_uid}.jpg")
-            with open(photo_path, "wb") as f:
-                f.write(id_photo.getbuffer())
-            player_photos[free_fire_uid] = photo_path
-
-            # Append to the player DataFrame
-            new_registration = {
-                "Name": name,
-                "Class": class_selected,
-                "House": house,
-                "Free Fire UID": free_fire_uid
-            }
-            registration_df = registration_df.append(new_registration, ignore_index=True)
-            save_csv_data(registration_df, REGISTRATION_CSV)  # Save the updated data to CSV
-            st.success(f"Registration successful for {name}!")
-
-    # Always display the registration DataFrame
-    if not registration_df.empty:
-        st.write("### Registered Players")
-        st.dataframe(registration_df)
 
 # Add a Twitter follow link at the bottom of the sidebar
 st.sidebar.markdown("---")
