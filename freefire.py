@@ -6,7 +6,6 @@ import os
 team_registrations = {"Aravali": [], "Nilgiri": [], "Shiwalik": [], "Udaygiri": []}
 hosting_members = []
 player_photos = {}  # Dictionary to store player ID photos
-match_schedule = []  # List to store match schedule
 
 # Define house logos
 house_logos = {
@@ -69,7 +68,7 @@ page = st.sidebar.selectbox("Select a page", [
     "Rules"
 ])
 
-# Initialize session state for notices, rules, chat messages, and point table if not already set
+# Initialize session state for notices, rules, chat messages, point table, and match schedule if not already set
 if "notices" not in st.session_state:
     st.session_state.notices = []
 if "rules" not in st.session_state:
@@ -78,6 +77,8 @@ if "chat_messages" not in st.session_state:
     st.session_state.chat_messages = []
 if "point_table" not in st.session_state:
     st.session_state.point_table = point_table.copy()
+if "match_schedule" not in st.session_state:
+    st.session_state.match_schedule = []  # Initialize match schedule as empty list
 
 # Load the registration DataFrame from CSV
 registration_df = load_csv_data(REGISTRATION_CSV)
@@ -106,6 +107,57 @@ if page == "Point Table":
             st.success(f"Updated points for {house}")
     else:
         st.error("Incorrect password! You do not have permission to edit the point table.")
+
+elif page == "Schedule":
+    st.header("Match Schedule")
+
+    # Display existing schedule for everyone
+    if st.session_state.match_schedule:
+        st.write("### Current Match Schedule")
+        for match in st.session_state.match_schedule:
+            st.write(f"- {match}")
+
+    # Admin section to update match schedule
+    password = st.text_input("Enter Admin Password to Fix Matches", type="password")
+
+    if password == ADMIN_PASSWORD:
+        st.write("### Add Match to Schedule")
+        match_input = st.text_area("Enter Match Details")
+        if st.button("Add Match"):
+            if match_input:
+                st.session_state.match_schedule.append(match_input)
+                st.success("Match added to schedule!")
+            else:
+                st.error("Please enter match details.")
+
+        st.write("### Update Match Winner")
+        match_to_update = st.selectbox("Select Match", st.session_state.match_schedule)
+        winner = st.selectbox("Select Winner", ["Aravali", "Nilgiri", "Shiwalik", "Udaygiri"])
+
+        if st.button("Update Winner"):
+            st.session_state.match_schedule.remove(match_to_update)
+            st.success(f"Match {match_to_update} updated with winner: {winner}")
+
+elif page == "Host Registration":
+    st.header("Host Registration")
+
+    # Display form but require admin password to register
+    st.write("### Register as a Host")
+
+    name = st.text_input("Name")
+    contact_info = st.text_input("Contact Information")
+
+    password = st.text_input("Enter Admin Password to Register as Host", type="password")
+
+    if password == ADMIN_PASSWORD:
+        if st.button("Register"):
+            if name and contact_info:
+                hosting_members.append({"Name": name, "Contact": contact_info})
+                st.success(f"{name} has been registered as a host!")
+            else:
+                st.error("Please fill out all fields!")
+    else:
+        st.error("Incorrect admin password! You cannot register as a host.")
 
 elif page == "Notices":
     st.header("Notices")
