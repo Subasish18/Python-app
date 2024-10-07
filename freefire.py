@@ -33,6 +33,8 @@ if "chat_messages" not in st.session_state:
     st.session_state.chat_messages = []
 if "match_schedule" not in st.session_state:
     st.session_state.match_schedule = []
+if "player_photos" not in st.session_state:
+    st.session_state.player_photos = {}  # Initialize player photos dictionary
 
 # Load the registration DataFrame from CSV
 registration_df = load_csv_data(REGISTRATION_CSV)
@@ -79,9 +81,17 @@ if page == "Team Info":
     if not registration_df.empty:
         for house in house_logos.keys():
             st.write(f"### {house}")
+            st.image(house_logos[house], width=100)  # Display the house logo
             team_players = registration_df[registration_df["House"] == house]
             if not team_players.empty:
-                st.dataframe(team_players[["Name", "Class", "Free Fire UID"]])
+                for idx, player in team_players.iterrows():
+                    st.write(f"**{player['Name']}** (Class: {player['Class']}, Free Fire UID: {player['Free Fire UID']})")
+                    # Display the player photo if available
+                    photo_path = st.session_state.player_photos.get(player["Free Fire UID"])
+                    if photo_path and os.path.exists(photo_path):
+                        st.image(photo_path, width=100)
+                    else:
+                        st.write("No photo available.")
             else:
                 st.write(f"No players registered for {house} yet.")
     else:
@@ -177,7 +187,7 @@ elif page == "Registration":
             photo_path = os.path.join(ID_PHOTOS_DIR, f"{free_fire_uid}.jpg")
             with open(photo_path, "wb") as f:
                 f.write(id_photo.getbuffer())
-            player_photos[free_fire_uid] = photo_path
+            st.session_state.player_photos[free_fire_uid] = photo_path  # Save the photo path
 
             # Append to the player DataFrame
             new_registration = {
